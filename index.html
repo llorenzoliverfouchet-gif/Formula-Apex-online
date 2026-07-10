@@ -100,9 +100,11 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   background:#05070b;box-shadow:0 0 10px #000;display:none}
 body.mp #topL,body.mp #times,body.mp #speed,body.mp #kbHint{display:none}
 body.mp:not(.touchDev) #touchL,body.mp:not(.touchDev) #touchR{display:none}
+body.mp:not(.touchDev) #touchWheel{display:none}
 body.mp.touchDev #touchL,body.mp.touchDev #touchR{transform:scale(0.68)}
 body.mp.touchDev #touchL{left:4px;bottom:calc(50% + 8px)}
 body.mp.touchDev #touchR{right:4px;bottom:calc(50% + 8px)}
+body.mp.touchDev #touchWheel{transform:scale(0.68);left:4px;bottom:calc(50% + 8px)}
 #touchL2,#touchR2{position:absolute;display:none;gap:8px;transform:scale(0.68)}
 #touchL2{left:4px;bottom:8px}
 #touchR2{right:4px;bottom:8px;align-items:flex-end}
@@ -128,6 +130,7 @@ body.mp #split{display:block}
 #view,#view canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #hud{position:absolute;inset:0;pointer-events:none;user-select:none;-webkit-user-select:none}
 #hud button{pointer-events:auto}
+#wheelDial{pointer-events:auto}
 #topL{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:6px}
 #hudPos{font-family:'Racing Sans One',sans-serif;font-style:italic;font-size:38px;
   line-height:1;text-shadow:0 2px 8px #000a}
@@ -170,6 +173,18 @@ body.mp #split{display:block}
 #btnBrk{width:74px;height:64px;background:#3d1010d0;font-size:13px}
 #touchL button:active,#touchR button:active{filter:brightness(1.6)}
 body.noTouch #touchL,body.noTouch #touchR{display:none}
+#touchWheel{position:absolute;left:12px;bottom:14px;width:132px;height:132px;display:none}
+#wheelDial{position:relative;width:100%;height:100%;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#1c212bcc,#0a0c12ee 70%);
+  border:3px solid var(--line);touch-action:none;
+  box-shadow:0 6px 18px #0008, inset 0 0 0 8px #0a0c1266}
+#wheelDial::before{content:'';position:absolute;inset:14px;border-radius:50%;border:2px solid #ffffff22}
+#wheelDial::after{content:'';position:absolute;inset:0;border-radius:50%;
+  background:repeating-conic-gradient(#ffffff14 0 2deg,transparent 2deg 90deg)}
+#wheelDial i{position:absolute;top:6px;left:50%;width:6px;height:24px;margin-left:-3px;
+  border-radius:3px;background:var(--acc);box-shadow:0 0 6px #0009}
+body.wheelCtrl #touchL{display:none}
+body.wheelCtrl:not(.noTouch) #touchWheel{display:block}
 #kbHint{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
   font-size:11px;color:#8a93a366;display:none;white-space:nowrap}
 body.noTouch #kbHint{display:block}
@@ -248,6 +263,13 @@ body.noTouch #kbHint{display:block}
     <div id="diffRow" class="chips"></div>
     </div>
 
+    <div class="secHead"><span class="lbl">COMMANDES</span><span id="ctrlName" class="val"></span></div>
+    <div class="chips">
+      <button class="chip" id="arrowsChip">⬅➡&nbsp;FLÈCHES TACTILES</button>
+      <button class="chip" id="wheelChip">🎡&nbsp;VOLANT TACTILE</button>
+    </div>
+    <div id="gpNote" class="hint" style="margin-top:6px;text-align:left" hidden>🎮 Manette détectée — pilotage au joystick, gâchettes RT/LT (ou A/B), START pour pause.</div>
+
     <div class="secHead"><span class="lbl">GRAPHISMES</span><span id="gfxName" class="val"></span></div>
     <div class="chips">
       <button class="chip" id="shadowChip">🌗&nbsp;OMBRES</button>
@@ -292,6 +314,7 @@ body.noTouch #kbHint{display:block}
     <div id="flagTxt" hidden>🏁 DRAPEAU À DAMIER</div>
     <div id="camToast" hidden></div>
     <div id="touchL"><button id="btnL">⟵</button><button id="btnR">⟶</button></div>
+    <div id="touchWheel"><div id="wheelDial"><i></i></div></div>
     <div id="touchR"><button id="btnBrk">FREIN</button><button id="btnGas">GAZ</button></div>
     <div id="touchL2"><button id="btnL2">⟵</button><button id="btnR2">⟶</button></div>
     <div id="touchR2"><button id="btnBrk2">FREIN</button><button id="btnGas2">GAZ</button></div>
@@ -1002,11 +1025,11 @@ let worldSun=null, worldEnv=null, AIC=0.9;
 const sunDir=new THREE.Vector3(0,1,0);
 const isTouch=('ontouchstart' in window);
 const gfx={shadows:!isTouch, hq:true, bright:1};
-const DIFFS=[{n:'FACILE',mul:0.90},{n:'NORMAL',mul:0.97},{n:'DIFFICILE',mul:1.03}];
+const DIFFS=[{n:'FACILE',mul:0.90},{n:'NORMAL',mul:0.97},{n:'DIFFICILE',mul:1.03},{n:'IMPOSSIBLE',mul:1.10}];
 const camPos=new THREE.Vector3(), camPos2=new THREE.Vector3(), camLook=new THREE.Vector3();
-const sel={track:0,team:0,laps:3,opp:9,diff:1,mp:false,net:false};
-const input={gas:false,brk:false,left:false,right:false};
-const input2={gas:false,brk:false,left:false,right:false};
+const sel={track:0,team:0,laps:3,opp:9,diff:1,mp:false,net:false,ctrl:'arrows'};
+const input={gas:false,brk:false,left:false,right:false,axis:null};
+const input2={gas:false,brk:false,left:false,right:false,axis:null};
 
 const $=id=>document.getElementById(id);
 const hudEls={};
@@ -1189,7 +1212,7 @@ function physPlayer(car,dt){
   const inp=car.inp||input;
   let gas=inp.gas, brk=inp.brk;
   if(car.finished){gas=false;brk=car.speed>2;}
-  const st=(inp.left?1:0)-(inp.right?1:0);
+  const st=(inp.axis!=null)?clamp(inp.axis,-1,1):((inp.left?1:0)-(inp.right?1:0));
   car.steer=lerp(car.steer,st,Math.min(1,10*dt));
   if(gas) car.speed+=30*(car.fuel<=0?0.25:1)*(1-car.speed/TOP)*dt;
   else if(car.speed>0) car.speed=Math.max(car.speed-6*dt,0);
@@ -1663,6 +1686,7 @@ let last=performance.now();
 function loop(t){
   requestAnimationFrame(loop);
   const dt=Math.min((t-last)/1000,0.05); last=t;
+  pollGamepads();
   if(state==='menu'||state==='pause')return;
   step(dt);
   doRender();
@@ -1751,6 +1775,69 @@ bindHold2($('btnGas2'),'gas'); bindHold2($('btnBrk2'),'brk');
 bindHold2($('btnL2'),'left'); bindHold2($('btnR2'),'right');
 if('ontouchstart' in window)document.body.classList.remove('noTouch');
 if(isTouch)document.body.classList.add('touchDev');
+
+/* ---------- volant tactile ---------- */
+const wheelDial=$('wheelDial');
+let wheelDrag=false, wheelCx=0, wheelCy=0;
+const WHEEL_MAX=1.4;
+function wheelAngle(x,y){
+  const dx=x-wheelCx, dy=y-wheelCy;
+  if(Math.abs(dx)<3&&Math.abs(dy)<3) return 0;
+  return clamp(Math.atan2(dx,-dy),-WHEEL_MAX,WHEEL_MAX);
+}
+function wheelSet(a){ input.axis=clamp(-a/WHEEL_MAX,-1,1); wheelDial.style.transform='rotate('+a+'rad)'; }
+function wheelRelease(){ if(!wheelDrag)return; wheelDrag=false; input.axis=null; wheelDial.style.transform='rotate(0rad)'; }
+wheelDial.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  const r=$('touchWheel').getBoundingClientRect();
+  wheelCx=r.left+r.width/2; wheelCy=r.top+r.height/2;
+  wheelDrag=true;
+  try{wheelDial.setPointerCapture(e.pointerId);}catch(_){}
+  wheelSet(wheelAngle(e.clientX,e.clientY));
+});
+wheelDial.addEventListener('pointermove',e=>{ if(wheelDrag){e.preventDefault();wheelSet(wheelAngle(e.clientX,e.clientY));} });
+wheelDial.addEventListener('pointerup',wheelRelease);
+wheelDial.addEventListener('pointercancel',wheelRelease);
+wheelDial.addEventListener('lostpointercapture',wheelRelease);
+wheelDial.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ---------- manette ---------- */
+const gpPrev={p1:{},p2:{}};
+function gpBtn(pad,i){ const b=pad.buttons[i]; return !!b&&(b.pressed||b.value>0.5); }
+function gpEdge(tag,pad,i){ const now=gpBtn(pad,i),was=!!gpPrev[tag][i]; gpPrev[tag][i]=now; return now&&!was; }
+function applyGamepad(pad,tgt){
+  if(!pad) return; // pas de manette : on laisse le clavier/tactile/volant piloter tgt.axis
+  const dz=0.16, stick=pad.axes[0]||0;
+  const dl=gpBtn(pad,14), dr=gpBtn(pad,15);
+  const gas=gpBtn(pad,7)||gpBtn(pad,0), brk=gpBtn(pad,6)||gpBtn(pad,1);
+  const active=dl||dr||gas||brk||Math.abs(stick)>dz;
+  if(!active){ tgt.axis=null; return; }
+  tgt.axis=dl?1:dr?-1:(Math.abs(stick)>dz?-stick:0);
+  tgt.gas=gas; tgt.brk=brk;
+}
+function pollGamepads(){
+  const pads=navigator.getGamepads?navigator.getGamepads():[];
+  const p1=pads[0]||null;
+  applyGamepad(p1,input);
+  applyGamepad(mp?(pads[1]||null):null,input2);
+  $('gpNote').hidden=!p1;
+  if(!p1)return;
+  if(gpEdge('p1',p1,0)){
+    if(state==='menu')tryLaunch();
+    else if(state==='pause')togglePause();
+    else if(state==='finish')$('againBtn').click();
+  }
+  if(gpEdge('p1',p1,9)&&(state==='race'||state==='count'||state==='pause'))togglePause();
+}
+addEventListener('gamepadconnected',()=>{
+  $('gpNote').hidden=false;
+  if(state!=='menu'){hudEls.camToast.textContent='🎮 MANETTE CONNECTÉE';hudEls.camToast.hidden=false;toastT=2.4;}
+});
+addEventListener('gamepaddisconnected',()=>{
+  const pads=navigator.getGamepads?navigator.getGamepads():[];
+  if(![...pads].some(p=>p))$('gpNote').hidden=true;
+  input.axis=null; input2.axis=null;
+});
 
 $('camBtn').onclick=cycleCam;
 $('sndBtn').onclick=()=>{sndOn=!sndOn;$('sndBtn').textContent=sndOn?'🔊':'🔇';};
@@ -1861,6 +1948,8 @@ function buildMenu(){
     };
     $('diffRow').appendChild(b);
   });
+  $('arrowsChip').onclick=()=>{sel.ctrl='arrows';refreshMenu();};
+  $('wheelChip').onclick=()=>{sel.ctrl='wheel';refreshMenu();};
   $('shadowChip').onclick=()=>{gfx.shadows=!gfx.shadows;refreshMenu();};
   $('hqChip').onclick=()=>{gfx.hq=!gfx.hq;refreshMenu();};
   $('soloChip').onclick=()=>{
@@ -1923,6 +2012,10 @@ function refreshMenu(){
   $('oppV').textContent=sel.opp;
   [...$('diffRow').children].forEach((el,i)=>el.classList.toggle('sel',i===sel.diff));
   $('diffName').textContent=DIFFS[sel.diff].n;
+  $('arrowsChip').classList.toggle('sel',sel.ctrl==='arrows');
+  $('wheelChip').classList.toggle('sel',sel.ctrl==='wheel');
+  $('ctrlName').textContent=sel.ctrl==='wheel'?'VOLANT':'FLÈCHES';
+  document.body.classList.toggle('wheelCtrl',sel.ctrl==='wheel');
   $('shadowChip').classList.toggle('sel',gfx.shadows);
   $('hqChip').classList.toggle('sel',gfx.hq);
   $('gfxName').textContent=(gfx.hq?'HD':'RAPIDE')+(gfx.shadows?' + OMBRES':'');
@@ -1943,7 +2036,7 @@ function refreshMenu(){
 
 function startRace(){
   lapsTotal=sel.laps;
-  AIC=[0.8,0.9,1.0][sel.diff];
+  AIC=[0.8,0.9,1.0,1.06][sel.diff];
   online=sel.net;
   mp=sel.mp&&!online;
   if(mp&&sel.opp>8)sel.opp=8;
