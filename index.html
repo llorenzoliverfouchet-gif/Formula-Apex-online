@@ -17,6 +17,22 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Racing+Sans+One&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "@trystero-p2p/core": "https://cdn.jsdelivr.net/npm/@trystero-p2p/core@0.25.2/dist/index.mjs",
+    "@trystero-p2p/torrent": "https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent@0.25.2/dist/index.mjs"
+  }
+}
+</script>
+<script type="module">
+  import('@trystero-p2p/torrent').then(({joinRoom, selfId}) => {
+    window.Trystero = { joinRoom, selfId };
+    window.dispatchEvent(new CustomEvent('trystero-ready'));
+  }).catch(() => {
+    window.dispatchEvent(new CustomEvent('trystero-failed'));
+  });
+</script>
 <style>
 :root{
   --bg:#0b0d11; --panel:#141821; --panel2:#1a1f2b; --line:#262d3a;
@@ -122,6 +138,15 @@ body.mp #split{display:block}
   padding:10px;margin:5px 0;font-family:'Chakra Petch',sans-serif}
 #netBox input[type=text]:focus{border-color:var(--acc);outline:none}
 #netBox .obtn{padding:10px;font-size:13px;margin-top:6px}
+#lobbyList{margin:5px 0;max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.lobbyEmpty{font-size:12px;color:var(--mut);padding:8px 2px}
+.lobbyRow{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.lobbyRow span{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lobbyRow button{flex:0 0 auto;width:auto;padding:7px 12px;font-size:11px;margin-top:0;letter-spacing:.06em}
+.lobbyRow button:disabled{opacity:0.45;pointer-events:none}
+.challengeBox{background:var(--panel2);border:1px solid var(--acc);border-radius:8px;
+  padding:10px;margin:6px 0;font-size:13px;font-weight:700}
 .netLbl{font-size:10px;letter-spacing:.14em;color:var(--mut);font-weight:700;display:block;margin-top:10px}
 .netHelp{font-size:11px;color:var(--mut);margin:10px 0 0;line-height:1.5}
 #netStatus{margin-top:10px;font-size:12px;font-weight:700;color:var(--yel)}
@@ -233,6 +258,18 @@ body.noTouch #kbHint{display:block}
     <div id="netBox" hidden>
       <label class="netLbl" style="margin-top:0">TON PSEUDO — affiché en hologramme au-dessus de ta voiture</label>
       <input id="unameInput" type="text" maxlength="15" placeholder="PILOTE (15 car. max)" autocomplete="off">
+
+      <label class="netLbl">JOUEURS EN LIGNE — clique pour inviter</label>
+      <div id="lobbyList"><div class="lobbyEmpty">Connexion au salon…</div></div>
+      <div id="incomingChallenge" class="challengeBox" hidden>
+        <span id="challengeText"></span>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="obtn prim" id="acceptChallengeBtn" style="margin-top:0">ACCEPTER</button>
+          <button class="obtn" id="declineChallengeBtn" style="margin-top:0">REFUSER</button>
+        </div>
+      </div>
+
+      <p class="netHelp">— ou par code, sans passer par le salon —</p>
       <div style="display:flex;gap:8px">
         <button class="obtn" id="hostBtn" style="margin-top:0">CRÉER UNE PARTIE</button>
         <button class="obtn" id="joinBtn" style="margin-top:0">REJOINDRE</button>
@@ -1592,6 +1629,99 @@ function updateAudio(){
 let online=false;
 const net={role:null,pc:null,dc:null,connected:false,remoteTeam:null,remoteName:null,rs:null,lastTx:0};
 let myName='';
+
+/* ---------- salon en ligne (Trystero — sans serveur, sans compte) ---------- */
+let lobbyRoom=null, lobbyActions=null, lobbyPeers={};
+let pendingOutgoing=null, pendingIncoming=null;
+let duelPeerId=null, duelFakeDC=null;
+function dispName(){ return (myName.trim()||'PILOTE').slice(0,15); }
+function ensureLobby(){
+  if(lobbyRoom||!window.Trystero) return;
+  const {joinRoom}=window.Trystero;
+  lobbyRoom=joinRoom({appId:'f1-apex-online-lobby-v1'},'f1apex-lobby');
+  const presence=lobbyRoom.makeAction('presence');
+  const challenge=lobbyRoom.makeAction('chal');
+  const accept=lobbyRoom.makeAction('acc');
+  const decline=lobbyRoom.makeAction('dec');
+  const game=lobbyRoom.makeAction('game');
+  lobbyActions={presence,challenge,accept,decline,game};
+  lobbyRoom.onPeerJoin=id=>{ try{presence.send(dispName(),{target:id});}catch(_){} };
+  lobbyRoom.onPeerLeave=id=>{
+    delete lobbyPeers[id]; renderLobbyList();
+    if(pendingOutgoing===id){pendingOutgoing=null;netStatus('Le joueur a quitté le salon.');}
+    if(pendingIncoming&&pendingIncoming.peerId===id)pendingIncoming=null;
+    if(duelPeerId===id){
+      duelPeerId=null;
+      if(duelFakeDC){const dc=duelFakeDC;duelFakeDC=null;if(dc.onclose)dc.onclose();}
+    }
+    renderLobbyList();
+  };
+  presence.onMessage=(name,ctx)=>{ lobbyPeers[ctx.peerId]=String(name||'PILOTE').slice(0,15); renderLobbyList(); };
+  challenge.onMessage=(name,ctx)=>{
+    if(net.connected||state!=='menu'){ try{decline.send('occupé',{target:ctx.peerId});}catch(_){} return; }
+    pendingIncoming={peerId:ctx.peerId,name:String(name||'PILOTE').slice(0,15)};
+    renderLobbyList();
+  };
+  accept.onMessage=(_d,ctx)=>{
+    if(pendingOutgoing===ctx.peerId){ pendingOutgoing=null; startTrysteroMatch(ctx.peerId,true); renderLobbyList(); }
+  };
+  decline.onMessage=(reason,ctx)=>{
+    if(pendingOutgoing===ctx.peerId){
+      pendingOutgoing=null;
+      netStatus((lobbyPeers[ctx.peerId]||'Le joueur')+' a refusé'+(reason?(' ('+reason+')'):'')+'.');
+      renderLobbyList();
+    }
+  };
+  game.onMessage=(data,ctx)=>{
+    if(ctx.peerId===duelPeerId&&duelFakeDC&&duelFakeDC.onmessage) duelFakeDC.onmessage({data});
+  };
+  renderLobbyList();
+}
+addEventListener('trystero-ready',()=>{ if(sel.net) ensureLobby(); });
+let lobbyUnavailable=false;
+addEventListener('trystero-failed',()=>{ lobbyUnavailable=true; renderLobbyList(); });
+function makeTrysteroDC(peerId){
+  duelPeerId=peerId;
+  const fakeDC={readyState:'open',onopen:null,onclose:null,onmessage:null,
+    send:(data)=>{ try{lobbyActions.game.send(data,{target:peerId});}catch(_){} }};
+  duelFakeDC=fakeDC;
+  return fakeDC;
+}
+function startTrysteroMatch(peerId,iAmHost){
+  net.role=iAmHost?'host':'guest';
+  const fakeDC=makeTrysteroDC(peerId);
+  bindDC(fakeDC);
+  if(fakeDC.onopen)fakeDC.onopen();
+}
+function renderLobbyList(){
+  const box=$('lobbyList'); if(!box)return;
+  const ids=Object.keys(lobbyPeers);
+  if(lobbyUnavailable){ box.innerHTML='<div class="lobbyEmpty">Salon indisponible sur ce réseau — utilise un code ci-dessous.</div>'; }
+  else if(!window.Trystero){ box.innerHTML='<div class="lobbyEmpty">Chargement du salon…</div>'; }
+  else if(!ids.length){ box.innerHTML='<div class="lobbyEmpty">Aucun autre joueur en ligne pour l\'instant…</div>'; }
+  else{
+    box.innerHTML='';
+    ids.forEach(id=>{
+      const row=document.createElement('div'); row.className='lobbyRow';
+      const nm=document.createElement('span'); nm.textContent=lobbyPeers[id];
+      const btn=document.createElement('button'); btn.className='obtn prim';
+      const busy=net.connected||!!pendingOutgoing||!!pendingIncoming;
+      if(pendingOutgoing===id){ btn.textContent='EN ATTENTE…'; btn.disabled=true; }
+      else{ btn.textContent='INVITER'; btn.disabled=busy; }
+      btn.onclick=()=>{
+        if(net.connected||pendingOutgoing||pendingIncoming)return;
+        pendingOutgoing=id;
+        try{lobbyActions.challenge.send(dispName(),{target:id});}catch(_){}
+        netStatus('Invitation envoyée à '+lobbyPeers[id]+'…');
+        renderLobbyList();
+      };
+      row.append(nm,btn); box.appendChild(row);
+    });
+  }
+  const ic=$('incomingChallenge');
+  if(pendingIncoming){ ic.hidden=false; $('challengeText').textContent=pendingIncoming.name+' te propose une partie !'; }
+  else ic.hidden=true;
+}
 function netStatus(t){$('netStatus').textContent=t;}
 function makePC(){
   const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
@@ -1679,7 +1809,6 @@ async function applyRemoteCode(){
     }
   }catch(err){netStatus('Erreur de connexion : '+err.message);}
 }
-function dispName(){ return (myName.trim()||'PILOTE').slice(0,15); }
 function sendCfgIfHost(){
   if(online&&net.role==='host'&&net.connected){
     try{net.dc.send(JSON.stringify({t:'cfg',track:sel.track,laps:sel.laps,team:sel.team,name:dispName()}));}catch(_){}
@@ -1999,12 +2128,27 @@ function buildMenu(){
   $('netChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
     sel.mp=false;sel.net=true;refreshMenu();
+    ensureLobby();
   };
   $('unameInput').oninput=e=>{
     myName=e.target.value.slice(0,15);
     if(online&&net.connected){
       try{net.dc.send(JSON.stringify({t:'team',team:sel.team,name:dispName()}));}catch(_){}
     }
+    if(lobbyActions){ try{lobbyActions.presence.send(dispName());}catch(_){} }
+  };
+  $('acceptChallengeBtn').onclick=()=>{
+    if(!pendingIncoming)return;
+    const peerId=pendingIncoming.peerId;
+    try{lobbyActions.accept.send(null,{target:peerId});}catch(_){}
+    pendingIncoming=null;
+    startTrysteroMatch(peerId,false);
+    renderLobbyList();
+  };
+  $('declineChallengeBtn').onclick=()=>{
+    if(!pendingIncoming)return;
+    try{lobbyActions.decline.send(null,{target:pendingIncoming.peerId});}catch(_){}
+    pendingIncoming=null; renderLobbyList();
   };
   $('hostBtn').onclick=()=>{initAudio();hostGame();};
   $('joinBtn').onclick=()=>{
