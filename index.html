@@ -147,6 +147,26 @@ body.mp #split{display:block}
 .lobbyRow button:disabled{opacity:0.45;pointer-events:none}
 .challengeBox{background:var(--panel2);border:1px solid var(--acc);border-radius:8px;
   padding:10px;margin:6px 0;font-size:13px;font-weight:700}
+.chatBox{margin-top:6px}
+.chatMsgs{max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin:6px 0}
+.chatMsg{font-size:12px;padding:6px 9px;border-radius:8px;max-width:85%;word-break:break-word;line-height:1.35}
+.chatMsg.me{align-self:flex-end;background:var(--acc);color:#fff}
+.chatMsg.them{align-self:flex-start;background:var(--panel2);border:1px solid var(--line)}
+.chatMsg .who{display:block;font-size:9px;opacity:.7;margin-bottom:2px;letter-spacing:.06em;font-weight:700}
+.chatInputRow{display:flex;gap:6px}
+.chatInputRow input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  color:var(--txt);font-size:13px;padding:8px 10px;font-family:'Chakra Petch',sans-serif}
+.chatInputRow input:focus{border-color:var(--acc);outline:none}
+.chatInputRow button{flex:0 0 auto;background:var(--acc);border:none;border-radius:8px;color:#fff;
+  font-weight:700;padding:0 14px;font-size:16px}
+#micBtn.live{background:var(--acc)}
+#chatToggleBtn{position:relative}
+#chatBadge{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:10px;font-weight:700;font-style:normal;
+  display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 0 0 2px #0a0c12}
+.chatPanel{width:220px;max-height:230px;background:#0a0c12ee;border:1px solid var(--line);
+  border-radius:10px;padding:8px;display:flex;flex-direction:column;pointer-events:auto}
+.chatPanel .chatMsgs{max-height:150px}
 .netLbl{font-size:10px;letter-spacing:.14em;color:var(--mut);font-weight:700;display:block;margin-top:10px}
 .netHelp{font-size:11px;color:var(--mut);margin:10px 0 0;line-height:1.5}
 #netStatus{margin-top:10px;font-size:12px;font-weight:700;color:var(--yel)}
@@ -282,7 +302,19 @@ body.noTouch #kbHint{display:block}
       <textarea id="theirCode" placeholder="Colle ici le code de l'autre joueur"></textarea>
       <button class="obtn prim" id="applyCode">VALIDER LE CODE REÇU</button>
       <div id="netStatus">Hors ligne.</div>
+
+      <div id="chatBox" class="chatBox" hidden>
+        <label class="netLbl" style="margin-top:0">💬 CHAT AVEC <span id="chatWithName">L'AUTRE JOUEUR</span></label>
+        <div id="chatMsgsMenu" class="chatMsgs"></div>
+        <div class="chatInputRow">
+          <input id="chatInputMenu" type="text" maxlength="200" placeholder="Écris un message…" autocomplete="off">
+          <button id="chatSendMenu">➤</button>
+        </div>
+        <button class="obtn" id="micBtnMenu" style="margin-top:8px">🎤 ACTIVER LE MICRO</button>
+        <p class="netHelp">Le micro fonctionne pour les parties lancées depuis le salon de joueurs en ligne (pas par code manuel).</p>
+      </div>
     </div>
+    <audio id="remoteAudio" autoplay hidden></audio>
 
     <div id="netLockNote" class="netLockNote">🔒 Connecté·e — l'hôte choisit le circuit et les tours, tu choisis ton écurie ci-dessous.</div>
 
@@ -338,9 +370,18 @@ body.noTouch #kbHint{display:block}
       <div id="btns">
         <button id="camBtn" title="Changer la vue">📷</button>
         <button id="sndBtn" title="Son">🔊</button>
+        <button id="micBtn" title="Micro" hidden>🎤</button>
+        <button id="chatToggleBtn" title="Chat" hidden>💬<i id="chatBadge" hidden></i></button>
         <button id="pauseBtn" title="Pause">⏸</button>
       </div>
       <canvas id="mini" width="120" height="120"></canvas>
+      <div id="chatPanel" class="chatPanel" hidden>
+        <div id="chatMsgsRace" class="chatMsgs"></div>
+        <div class="chatInputRow">
+          <input id="chatInputRace" type="text" maxlength="200" placeholder="Message…" autocomplete="off">
+          <button id="chatSendRace">➤</button>
+        </div>
+      </div>
     </div>
     <div id="times">
       <div id="hudTime">0:00.0</div>
@@ -1653,8 +1694,14 @@ function ensureLobby(){
     if(duelPeerId===id){
       duelPeerId=null;
       if(duelFakeDC){const dc=duelFakeDC;duelFakeDC=null;if(dc.onclose)dc.onclose();}
+      stopMic();
     }
     renderLobbyList();
+  };
+  lobbyRoom.onPeerStream=(stream,id)=>{
+    if(id!==duelPeerId)return;
+    const el=$('remoteAudio'); if(!el)return;
+    el.srcObject=stream; el.play().catch(()=>{});
   };
   presence.onMessage=(name,ctx)=>{ lobbyPeers[ctx.peerId]=String(name||'PILOTE').slice(0,15); renderLobbyList(); };
   challenge.onMessage=(name,ctx)=>{
@@ -1744,6 +1791,7 @@ function bindDC(dc){
   net.dc=dc;
   dc.onopen=()=>{
     net.connected=true;
+    chatLog=[]; chatUnread=0; renderChat(); updateChatBadge();
     netStatus('✅ CONNECTÉ ! '+(net.role==='host'
       ?'Choisis circuit, tours et écurie, puis LANCER LA COURSE.'
       :"Choisis ton écurie — l'hôte va lancer la course."));
@@ -1782,7 +1830,76 @@ function bindDC(dc){
       quitToMenu(true);
     }
     else if(m.t==='s')net.rs=Object.assign(m,{rx:performance.now()});
+    else if(m.t==='chat'&&typeof m.msg==='string')addChatMessage('them',m.msg);
   };
+}
+
+/* ---------- chat texte (fonctionne salon comme code manuel) ---------- */
+let chatLog=[], chatUnread=0, chatOpen=false;
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function addChatMessage(who,text){
+  chatLog.push({who,text:String(text).slice(0,200)});
+  if(chatLog.length>50)chatLog.shift();
+  renderChat();
+  if(who==='them'&&!chatOpen){ chatUnread++; updateChatBadge(); }
+}
+function sendChatMsg(text){
+  text=(text||'').trim().slice(0,200);
+  if(!text||!net.connected)return;
+  addChatMessage('me',text);
+  try{net.dc.send(JSON.stringify({t:'chat',msg:text}));}catch(_){}
+}
+function renderChat(){
+  const html=chatLog.map(m=>{
+    const nm=m.who==='me'?'MOI':(net.remoteName||'ADVERSAIRE');
+    return '<div class="chatMsg '+m.who+'"><span class="who">'+escapeHtml(nm)+'</span>'+escapeHtml(m.text)+'</div>';
+  }).join('');
+  ['chatMsgsMenu','chatMsgsRace'].forEach(id=>{
+    const el=$(id); if(!el)return;
+    el.innerHTML=html; el.scrollTop=el.scrollHeight;
+  });
+}
+function updateChatBadge(){
+  const b=$('chatBadge'); if(!b)return;
+  b.hidden=chatUnread<=0; b.textContent=chatUnread>9?'9+':String(chatUnread);
+}
+function wireChatInput(inputId,btnId){
+  const inp=$(inputId), btn=$(btnId);
+  const send=()=>{ sendChatMsg(inp.value); inp.value=''; };
+  btn.onclick=send;
+  inp.addEventListener('keydown',e=>{
+    e.stopPropagation();
+    if(e.key==='Enter'){ e.preventDefault(); send(); }
+  });
+}
+
+/* ---------- micro (salon en ligne uniquement — connexion gérée par Trystero) ---------- */
+let micStream=null, micTrack=null, micOn=false;
+function updateMicBtn(){
+  const b1=$('micBtn'); if(b1){ b1.textContent=micOn?'🎙️':'🎤'; b1.classList.toggle('live',micOn); }
+  const b2=$('micBtnMenu'); if(b2){ b2.textContent=micOn?'🎙️ MICRO ACTIF':'🎤 ACTIVER LE MICRO'; b2.classList.toggle('live',micOn); }
+}
+function stopMic(){
+  if(micStream){ micStream.getTracks().forEach(t=>t.stop()); }
+  micStream=null; micTrack=null; micOn=false; updateMicBtn();
+}
+async function toggleMic(){
+  if(!lobbyRoom||!duelPeerId){
+    netStatus('Le micro fonctionne uniquement pour les parties lancées depuis le salon de joueurs en ligne.');
+    return;
+  }
+  if(!micStream){
+    try{
+      micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      micTrack=micStream.getAudioTracks()[0];
+      lobbyRoom.addStream(micStream,{target:duelPeerId});
+    }catch(_){ netStatus('Micro refusé ou indisponible.'); return; }
+  }
+  micOn=!micOn;
+  if(micTrack)micTrack.enabled=micOn;
+  updateMicBtn();
 }
 async function hostGame(){
   net.role='host';
@@ -1907,12 +2024,16 @@ const KEYS1={KeyW:'gas',KeyS:'brk',KeyA:'left',KeyD:'right'};
 const KEYS2={ArrowUp:'gas',ArrowDown:'brk',ArrowLeft:'left',ArrowRight:'right'};
 addEventListener('keydown',e=>{
   if(state==='menu')return;
+  const ae=document.activeElement;
+  if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
   if(KEYS1[e.code]){input[KEYS1[e.code]]=true;e.preventDefault();}
   if(KEYS2[e.code]){(mp?input2:input)[KEYS2[e.code]]=true;e.preventDefault();}
   if((e.code==='KeyC'||e.code==='KeyV')&&!e.repeat)cycleCam();
   if(e.code==='Escape')togglePause();
 });
 addEventListener('keyup',e=>{
+  const ae=document.activeElement;
+  if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
   if(KEYS1[e.code])input[KEYS1[e.code]]=false;
   if(KEYS2[e.code]){input[KEYS2[e.code]]=false;input2[KEYS2[e.code]]=false;}
 });
@@ -2150,6 +2271,15 @@ function buildMenu(){
     try{lobbyActions.decline.send(null,{target:pendingIncoming.peerId});}catch(_){}
     pendingIncoming=null; renderLobbyList();
   };
+  wireChatInput('chatInputMenu','chatSendMenu');
+  wireChatInput('chatInputRace','chatSendRace');
+  $('micBtn').onclick=toggleMic;
+  $('micBtnMenu').onclick=toggleMic;
+  $('chatToggleBtn').onclick=()=>{
+    chatOpen=!chatOpen;
+    $('chatPanel').hidden=!chatOpen;
+    if(chatOpen){ chatUnread=0; updateChatBadge(); $('chatInputRace').focus(); }
+  };
   $('hostBtn').onclick=()=>{initAudio();hostGame();};
   $('joinBtn').onclick=()=>{
     net.role='guest';
@@ -2218,6 +2348,8 @@ function refreshMenu(){
   ['modeBlk','trackBlk','stepBlk','diffBlk'].forEach(id=>$(id).classList.toggle('netLocked',guestLocked));
   $('netLockNote').classList.toggle('show',guestLocked);
   $('startBtn').style.opacity=(sel.net&&net.role==='guest')?0.55:1;
+  $('chatBox').hidden=!net.connected;
+  $('chatWithName').textContent=net.remoteName||"L'AUTRE JOUEUR";
 }
 
 function startRace(){
@@ -2227,6 +2359,9 @@ function startRace(){
   mp=sel.mp&&!online;
   if(mp&&sel.opp>8)sel.opp=8;
   document.body.classList.toggle('mp',mp);
+  document.body.classList.toggle('online',online);
+  $('micBtn').hidden=!online; $('chatToggleBtn').hidden=!online;
+  if(!online){ $('chatPanel').hidden=true; chatOpen=false; }
   setAspect();
   $('menu').hidden=true; $('game').hidden=false;
   hudEls.finish.hidden=true; hudEls.pause.hidden=true;
