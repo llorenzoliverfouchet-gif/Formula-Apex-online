@@ -1,5 +1,5 @@
 'use strict';
-const VERSION = 'apex-v1';
+const VERSION = 'apex-v2';
 const CORE_CACHE = `apex-core-${VERSION}`;
 const RUNTIME_CACHE = `apex-runtime-${VERSION}`;
 
