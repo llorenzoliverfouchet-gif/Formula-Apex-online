@@ -83,7 +83,8 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 #verBadge{position:fixed;top:8px;right:10px;z-index:5;
   font-size:10px;letter-spacing:.06em;font-weight:700;color:var(--acc);
   background:rgba(13,16,21,0.6);border:1px solid var(--line);border-radius:3px;
-  padding:3px 7px 3px 20px;pointer-events:none;font-variant-numeric:tabular-nums;
+  padding:3px 7px 3px 20px;cursor:default;-webkit-user-select:none;user-select:none;
+  font-variant-numeric:tabular-nums;
   text-shadow:0 0 10px rgba(32,231,255,0.4)}
 #verBadge::before{content:'';position:absolute;left:8px;top:50%;width:5px;height:5px;margin-top:-2.5px;
   border-radius:50%;background:#3dfd75;box-shadow:0 0 6px #3dfd75;animation:liveDot 1.6s ease-in-out infinite}
@@ -243,10 +244,17 @@ body.mp.touchDev #touchWheel{transform:scale(0.68);left:4px;bottom:calc(50% + 8p
 body.mp.touchDev #touchL2,body.mp.touchDev #touchR2{display:flex}
 body.mp .mpHud{display:flex}
 body.mp #split{display:block}
+body.cine #topL,body.cine #times,body.cine #speed,body.cine #kbHint,
+body.cine #touchL,body.cine #touchR,body.cine #touchWheel,
+body.cine #touchL2,body.cine #touchR2{display:none}
 #duoHint{display:none;font-size:11px;color:var(--mut);margin-top:8px}
 #duoHint.show{display:block}
 #serverHint{display:none;font-size:11px;color:var(--mut);margin-top:8px}
 #serverHint.show{display:block}
+#cineHint{display:none;font-size:11px;color:var(--mut);margin-top:8px}
+#cineHint.show{display:block}
+@keyframes unlockPulse{0%{box-shadow:0 0 0 0 rgba(32,231,255,.7)}70%{box-shadow:0 0 0 16px rgba(32,231,255,0)}100%{box-shadow:0 0 0 0 rgba(32,231,255,0)}}
+.chip.unlockPulse{animation:unlockPulse .9s ease-out 2}
 #netBox{--cut:14px;background:var(--panel);border:1px solid var(--line);padding:14px;margin-top:10px;
   clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut));
   backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5)}
@@ -409,7 +417,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge">v1.5 · 11/07/2026</div>
+  <div id="verBadge" title="Version">v1.6 · 11/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -425,10 +433,12 @@ body.noTouch #kbHint{display:block}
       <button class="chip" id="duoChip">👥&nbsp;2 JOUEURS · ÉCRAN PARTAGÉ</button>
       <button class="chip" id="netChip">🌐&nbsp;EN LIGNE · DUEL</button>
       <button class="chip" id="serverChip">🛰️&nbsp;EN LIGNE · SERVEUR</button>
+      <button class="chip" id="cineChip" hidden>🎬&nbsp;CINÉMATIQUE</button>
     </div>
     </div>
     <div id="serverHint">Passe par un serveur relais au lieu du direct — plus lent, mais marche même en 4G ou sur les réseaux les plus restrictifs. Pas de micro dans ce mode.</div>
     <div id="duoHint">Même clavier — Joueur 1 : ZQSD / WASD · Joueur 2 : flèches. Le joueur 2 reçoit automatiquement l'écurie suivante.</div>
+    <div id="cineHint">Mode réalisateur — zéro voiture jouable : 10 IA se disputent la course en boucle, la caméra suit celle de ton choix. Pendant la course : ⏮/⏭ ou ← → pour changer de voiture suivie, C/V pour changer d'angle. Idéal pour filmer des vidéos.</div>
     <div id="netBox" hidden>
       <label class="netLbl" style="margin-top:0">TON PSEUDO — affiché en hologramme au-dessus de ta voiture</label>
       <input id="unameInput" type="text" maxlength="15" placeholder="PILOTE (15 car. max)" autocomplete="off">
@@ -487,13 +497,15 @@ body.noTouch #kbHint{display:block}
     <div id="trackRow" class="cards"></div>
     </div>
 
+    <div id="teamBlk">
     <div class="secHead"><span class="lbl">ÉCURIE</span><span id="teamName" class="val"></span></div>
     <div id="teamRow" class="chips"></div>
+    </div>
 
     <div id="stepBlk" class="steppers">
       <div class="step"><span class="lbl">TOURS</span>
         <div class="ctr"><button id="lapM">−</button><b id="lapV">3</b><button id="lapP">+</button></div></div>
-      <div class="step"><span class="lbl">ADVERSAIRES</span>
+      <div class="step" id="oppBlk"><span class="lbl">ADVERSAIRES</span>
         <div class="ctr"><button id="oppM">−</button><b id="oppV">9</b><button id="oppP">+</button></div></div>
     </div>
 
@@ -502,12 +514,14 @@ body.noTouch #kbHint{display:block}
     <div id="diffRow" class="chips"></div>
     </div>
 
+    <div id="ctrlBlk">
     <div class="secHead"><span class="lbl">COMMANDES</span><span id="ctrlName" class="val"></span></div>
     <div class="chips">
       <button class="chip" id="arrowsChip">⬅➡&nbsp;FLÈCHES TACTILES</button>
       <button class="chip" id="wheelChip">🎡&nbsp;VOLANT TACTILE</button>
     </div>
     <div id="gpNote" class="hint" style="margin-top:6px;text-align:left" hidden>🎮 Manette détectée — pilotage au joystick, gâchettes RT/LT (ou A/B), START pour pause.</div>
+    </div>
 
     <div class="secHead"><span class="lbl">GRAPHISMES</span><span id="gfxName" class="val"></span></div>
     <div class="chips">
@@ -532,7 +546,9 @@ body.noTouch #kbHint{display:block}
     </div>
     <div id="topR">
       <div id="btns">
+        <button id="cinePrevBtn" title="Voiture précédente" hidden>⏮</button>
         <button id="camBtn" title="Changer la vue">📷</button>
+        <button id="cineNextBtn" title="Voiture suivante" hidden>⏭</button>
         <button id="sndBtn" title="Son">🔊</button>
         <button id="micBtn" title="Micro" hidden>🎤</button>
         <button id="chatToggleBtn" title="Chat" hidden>💬<i id="chatBadge" hidden></i></button>
@@ -1288,7 +1304,7 @@ function makeNameplate(text){
 }
 
 /* ================= COURSE ================= */
-let cars=[], player=null, players=[], mp=false;
+let cars=[], player=null, players=[], mp=false, cine=false, cineIdx=0;
 let state='menu', lapsTotal=3, raceT0=0, countT=0, goT=0, flagT=0;
 let camMode=0; const CAMS=['POURSUITE','COCKPIT','CAMÉRA TV','AÉRIENNE'];
 let startMats=null, anim=null, td=null, trackCur=null, prevState='race';
@@ -1299,7 +1315,7 @@ const isTouch=('ontouchstart' in window);
 const gfx={shadows:!isTouch, hq:true, bright:1};
 const DIFFS=[{n:'FACILE',mul:0.90},{n:'NORMAL',mul:0.97},{n:'DIFFICILE',mul:1.03},{n:'IMPOSSIBLE',mul:1.10}];
 const camPos=new THREE.Vector3(), camPos2=new THREE.Vector3(), camLook=new THREE.Vector3();
-const sel={track:0,team:0,laps:3,opp:9,diff:1,mp:false,net:false,netMode:'p2p',ctrl:'arrows'};
+const sel={track:0,team:0,laps:3,opp:9,diff:1,mp:false,net:false,netMode:'p2p',ctrl:'arrows',cine:false};
 const input={gas:false,brk:false,left:false,right:false,axis:null};
 const input2={gas:false,brk:false,left:false,right:false,axis:null};
 
@@ -1351,11 +1367,12 @@ function buildWorld(){
   td.p.forEach(p=>{mnx=Math.min(mnx,p.x);mxx=Math.max(mxx,p.x);mnz=Math.min(mnz,p.z);mxz=Math.max(mxz,p.z);});
   const sc=100/Math.max(mxx-mnx,mxz-mnz);
   mini={sc,ox:10+(100-(mxx-mnx)*sc)/2-mnx*sc, oz:10+(100-(mxz-mnz)*sc)/2-mnz*sc};
-  // caméras initiales derrière les joueurs
-  const f=new THREE.Vector3(Math.sin(player.heading),0,Math.cos(player.heading));
-  camPos.set(player.pos.x-f.x*11,4.5,player.pos.z-f.z*11);
+  // caméras initiales derrière les joueurs (ou la voiture IA suivie en mode cinématique)
+  const camCar=cine?(cars[cineIdx]||cars[0]):player;
+  const f=new THREE.Vector3(Math.sin(camCar.heading),0,Math.cos(camCar.heading));
+  camPos.set(camCar.pos.x-f.x*11,4.5,camCar.pos.z-f.z*11);
   camera.position.copy(camPos);
-  camera.lookAt(player.pos.x,1.4,player.pos.z);
+  camera.lookAt(camCar.pos.x,1.4,camCar.pos.z);
   if(mp&&players[1]){
     const p2=players[1];
     const f2=new THREE.Vector3(Math.sin(p2.heading),0,Math.cos(p2.heading));
@@ -1394,6 +1411,41 @@ function spawnCars(){
     };
     mk(null,0,true);
     raceMates.forEach((m,i)=>mk(m,i+1,false));
+    return;
+  }
+  if(cine){
+    // mode "cinématique" : grille complète, uniquement des IA, aucune voiture jouable
+    const mul=DIFFS[sel.diff].mul;
+    const base=[1.0,0.99,0.98,0.965,0.95,0.94,0.928,0.915,0.9,0.885];
+    const ckb=[0.97,0.945,0.92,0.9,0.88,0.86,0.84,0.82,0.8,0.78];
+    TEAMS.forEach((team,s)=>{
+      const idx=(N-10-s*7+N)%N;
+      const lane=(s%2?2.7:-2.7);
+      const p=td.p[idx],n=td.n[idx],t=td.t[idx];
+      const cm=makeCar(team);
+      const car={
+        team, isPlayer:false,
+        name:team.driver,
+        inp:null,
+        fuel:1, tank:team.tank||120, pitT:0, pitting:false,
+        mesh:cm.g, hull:cm.hull, spin:cm.spin, steerG:cm.steer,
+        pos:new THREE.Vector3(p.x+n.x*lane,0,p.z+n.z*lane),
+        heading:Math.atan2(t.x,t.z), speed:0, steer:0, thr:0,
+        idx, lat:lane, lap:0, lane0:0, lane:lane, laneT:lane,
+        skill:clamp((base[s]||0.89)*mul,0.6,1.05),
+        ck:clamp((ckb[s]||0.8)*AIC,0.55,0.97),
+        pph:rand(0,6.28), pfr:rand(0.5,1.2),
+        dbl:0, dblCd:rand(0,3), dblSide:1,
+        stuckT:0, recovering:false, progIdx:idx,
+        lapStart:0, lastLap:null, best:null, finished:false, finishTime:null
+      };
+      cm.g.position.set(car.pos.x,0.12,car.pos.z);
+      cm.g.rotation.y=car.heading;
+      cm.g.add(makeNameplate(car.name));
+      scene.add(cm.g);
+      cars.push(car);
+    });
+    cineIdx=clamp(cineIdx,0,cars.length-1);
     return;
   }
   const humans=mp?2:1;
@@ -1724,6 +1776,11 @@ function camFor(cam,c,cp,dt){
   cam.updateProjectionMatrix();
 }
 function updateCamera(dt){
+  if(cine){
+    const c=cars[cineIdx]||cars[0];
+    if(c) camFor(camera,c,camPos,dt);
+    return;
+  }
   camFor(camera,players[0]||player,camPos,dt);
   if(mp&&players[1]) camFor(camera2,players[1],camPos2,dt);
 }
@@ -1733,11 +1790,21 @@ function cycleCam(){
   hudEls.camToast.textContent='VUE : '+CAMS[camMode];
   hudEls.camToast.hidden=false; toastT=1.2;
 }
+function cineStep(dir){
+  if(!cine||!cars.length)return;
+  cineIdx=(cineIdx+dir+cars.length)%cars.length;
+  const c=cars[cineIdx];
+  const rank=ranking();
+  hudEls.camToast.textContent='🎥 SUIT : P'+(rank.indexOf(c)+1)+' · '+c.name+' ('+c.team.name+')';
+  hudEls.camToast.hidden=false; toastT=1.8;
+}
 
 /* ================= HUD ================= */
 function updateHUD(){
   const rank=ranking();
-  if(!mp){
+  if(cine){
+    // HUD texte masqué en mode cinématique (image propre pour la vidéo) — seule la minimap reste.
+  }else if(!mp){
     const c=player;
     hudEls.hudPos.innerHTML='P'+(rank.indexOf(c)+1)+'<i>/'+cars.length+'</i>';
     hudEls.hudLap.textContent='TOUR '+clamp(c.lap,1,lapsTotal)+'/'+lapsTotal;
@@ -1832,12 +1899,13 @@ function initAudio(){
 function updateAudio(){
   if(!eng)return;
   const racing=(state==='race'||state==='count'||state==='finish');
-  const spd=Math.abs(player?player.speed:0);
+  const specCar=cine?(cars[cineIdx]||cars[0]):player;
+  const spd=Math.abs(specCar?specCar.speed:0);
   let fr=55+(spd/TOP)*270;
   if(state==='count'&&(input.gas||input2.gas))fr=70+160*Math.abs(Math.sin(performance.now()*0.004));
   eng.o1.frequency.setTargetAtTime(fr,AC.currentTime,0.06);
   eng.o2.frequency.setTargetAtTime(fr*0.5,AC.currentTime,0.06);
-  const vol=(sndOn&&racing)?0.035+(spd/TOP)*0.05+(player&&player.thr?0.012:0):0;
+  const vol=(sndOn&&racing)?0.035+(spd/TOP)*0.05+(specCar&&specCar.thr?0.012:0):0;
   eng.g.gain.setTargetAtTime(vol,AC.currentTime,0.08);
 }
 
@@ -2414,10 +2482,13 @@ function step(dt){
     if(anim.wheel)anim.wheel.rotation.z+=0.12*dt;
     if(anim.sphere)anim.sphere.rotation.y+=0.1*dt;
   }
-  if(worldSun&&gfx.shadows&&player){
-    worldSun.position.set(player.pos.x+sunDir.x*300,sunDir.y*300,player.pos.z+sunDir.z*300);
-    worldSun.target.position.set(player.pos.x,0,player.pos.z);
-    worldSun.target.updateMatrixWorld();
+  if(worldSun&&gfx.shadows){
+    const sc=cine?(cars[cineIdx]||cars[0]):player;
+    if(sc){
+      worldSun.position.set(sc.pos.x+sunDir.x*300,sunDir.y*300,sc.pos.z+sunDir.z*300);
+      worldSun.target.position.set(sc.pos.x,0,sc.pos.z);
+      worldSun.target.updateMatrixWorld();
+    }
   }
   updateCamera(dt);
   updateHUD();
@@ -2431,8 +2502,13 @@ addEventListener('keydown',e=>{
   if(state==='menu')return;
   const ae=document.activeElement;
   if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
-  if(KEYS1[e.code]){input[KEYS1[e.code]]=true;e.preventDefault();}
-  if(KEYS2[e.code]){(mp?input2:input)[KEYS2[e.code]]=true;e.preventDefault();}
+  if(cine){
+    if((e.code==='ArrowLeft'||e.code==='KeyA')&&!e.repeat){cineStep(-1);e.preventDefault();}
+    if((e.code==='ArrowRight'||e.code==='KeyD')&&!e.repeat){cineStep(1);e.preventDefault();}
+  }else{
+    if(KEYS1[e.code]){input[KEYS1[e.code]]=true;e.preventDefault();}
+    if(KEYS2[e.code]){(mp?input2:input)[KEYS2[e.code]]=true;e.preventDefault();}
+  }
   if((e.code==='KeyC'||e.code==='KeyV')&&!e.repeat)cycleCam();
   if(e.code==='Escape')togglePause();
 });
@@ -2531,6 +2607,8 @@ addEventListener('gamepaddisconnected',()=>{
 });
 
 $('camBtn').onclick=cycleCam;
+$('cinePrevBtn').onclick=()=>cineStep(-1);
+$('cineNextBtn').onclick=()=>cineStep(1);
 $('sndBtn').onclick=()=>{sndOn=!sndOn;$('sndBtn').textContent=sndOn?'🔊':'🔇';};
 $('pauseBtn').onclick=()=>togglePause();
 function togglePause(){
@@ -2662,22 +2740,40 @@ function buildMenu(){
   $('hqChip').onclick=()=>{gfx.hq=!gfx.hq;refreshMenu();};
   $('soloChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.mp=false;sel.net=false;refreshMenu();saveNetPrefs();
+    sel.mp=false;sel.net=false;sel.cine=false;refreshMenu();saveNetPrefs();
   };
   $('duoChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.mp=true;sel.net=false;refreshMenu();saveNetPrefs();
+    sel.mp=true;sel.net=false;sel.cine=false;refreshMenu();saveNetPrefs();
   };
   $('netChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.mp=false;sel.net=true;sel.netMode='p2p';refreshMenu();saveNetPrefs();
+    sel.mp=false;sel.net=true;sel.netMode='p2p';sel.cine=false;refreshMenu();saveNetPrefs();
     ensureLobby();
   };
   $('serverChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.mp=false;sel.net=true;sel.netMode='server';refreshMenu();saveNetPrefs();
+    sel.mp=false;sel.net=true;sel.netMode='server';sel.cine=false;refreshMenu();saveNetPrefs();
     ensureServerLobby();
   };
+  $('cineChip').onclick=()=>{
+    if(online&&net.role==='guest'&&net.connected)return;
+    sel.mp=false;sel.net=false;sel.cine=true;refreshMenu();saveNetPrefs();
+  };
+  let verTapN=0,verTapT=null;
+  $('verBadge').addEventListener('click',()=>{
+    verTapN++;
+    clearTimeout(verTapT);
+    verTapT=setTimeout(()=>{verTapN=0;},1800);
+    if(verTapN>=7){
+      verTapN=0;
+      if($('cineChip').hidden){
+        $('cineChip').hidden=false;
+        $('cineChip').classList.add('unlockPulse');
+        setTimeout(()=>$('cineChip').classList.remove('unlockPulse'),1800);
+      }
+    }
+  });
   $('unameInput').oninput=e=>{
     myName=e.target.value.slice(0,15);
     saveNetPrefs();
@@ -2775,13 +2871,18 @@ function refreshMenu(){
   $('shadowChip').classList.toggle('sel',gfx.shadows);
   $('hqChip').classList.toggle('sel',gfx.hq);
   $('gfxName').textContent=(gfx.hq?'HD':'RAPIDE')+(gfx.shadows?' + OMBRES':'');
-  $('soloChip').classList.toggle('sel',!sel.mp&&!sel.net);
+  $('soloChip').classList.toggle('sel',!sel.mp&&!sel.net&&!sel.cine);
   $('duoChip').classList.toggle('sel',sel.mp);
   $('netChip').classList.toggle('sel',sel.net&&sel.netMode==='p2p');
   $('serverChip').classList.toggle('sel',sel.net&&sel.netMode==='server');
-  $('modeName').textContent=sel.net?(sel.netMode==='server'?'EN LIGNE · SERVEUR':'EN LIGNE'):(sel.mp?'2 JOUEURS':'SOLO');
+  $('cineChip').classList.toggle('sel',sel.cine);
+  $('modeName').textContent=sel.cine?'🎬 CINÉMATIQUE':(sel.net?(sel.netMode==='server'?'EN LIGNE · SERVEUR':'EN LIGNE'):(sel.mp?'2 JOUEURS':'SOLO'));
   $('duoHint').classList.toggle('show',sel.mp);
   $('serverHint').classList.toggle('show',sel.net&&sel.netMode==='server');
+  $('cineHint').classList.toggle('show',sel.cine);
+  $('teamBlk').hidden=sel.cine;
+  $('oppBlk').hidden=sel.cine;
+  $('ctrlBlk').hidden=sel.cine;
   $('netBox').hidden=!sel.net;
   const inServerMode=sel.net&&sel.netMode==='server';
   document.querySelectorAll('.p2pOnly').forEach(el=>{
@@ -2790,7 +2891,7 @@ function refreshMenu(){
     else{ el.hidden=inServerMode; }
   });
   $('startBtn').querySelector('span').textContent=
-    (sel.net&&net.role==='guest')?"EN ATTENTE DE L'HÔTE…":'LANCER LA COURSE';
+    (sel.net&&net.role==='guest')?"EN ATTENTE DE L'HÔTE…":(sel.cine?'LANCER LA CINÉMATIQUE':'LANCER LA COURSE');
   if(sel.mp&&sel.opp>8){sel.opp=8;$('oppV').textContent=8;}
   const guestLocked=sel.net&&net.role==='guest'&&net.connected;
   ['modeBlk','trackBlk','stepBlk','diffBlk'].forEach(id=>$(id).classList.toggle('netLocked',guestLocked));
@@ -2806,9 +2907,12 @@ function startRace(){
   AIC=[0.8,0.9,1.0,1.06][sel.diff];
   online=sel.net;
   mp=sel.mp&&!online;
+  cine=sel.cine&&!online&&!mp;
   if(mp&&sel.opp>8)sel.opp=8;
   document.body.classList.toggle('mp',mp);
   document.body.classList.toggle('online',online);
+  document.body.classList.toggle('cine',cine);
+  $('cinePrevBtn').hidden=!cine; $('cineNextBtn').hidden=!cine;
   $('micBtn').hidden=!online; $('chatToggleBtn').hidden=!online;
   if(!online){ $('chatPanel').hidden=true; chatOpen=false; }
   setAspect();
@@ -2817,7 +2921,7 @@ function startRace(){
   hudEls.goTxt.hidden=true; hudEls.flagTxt.hidden=true;
   hudEls.lights.hidden=false;
   [...hudEls.lights.children].forEach(el=>el.classList.remove('on'));
-  camMode=0; buildWorld();
+  camMode=0; cineIdx=0; buildWorld();
   state='count'; countT=0; goT=0; flagT=0;
   last=performance.now();
   doRender();
