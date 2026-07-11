@@ -2007,25 +2007,35 @@ const TURN_SERVERS=[
 const ICE_SERVERS=[{urls:'stun:stun.l.google.com:19302'},...TURN_SERVERS];
 function makePC(){
   const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
-  let codeEmitted=false;
+  let codeEmitted=false, relayTimer=null;
   function emitCode(){
     if(codeEmitted||!pc.localDescription)return;
     codeEmitted=true;
+    clearTimeout(relayTimer);
     $('myCode').value=btoa(JSON.stringify(pc.localDescription));
     netStatus(net.role==='host'
       ?'Code créé ! Envoie-le à ton ami·e, puis colle sa RÉPONSE ci-dessous et VALIDER.'
       :"Code-réponse créé ! Envoie-le à l'hôte, la connexion suivra.");
   }
+  pc.onicecandidate=e=>{
+    // dès qu'un candidat TURN (relais) arrive, on émet peu après plutôt que
+    // d'attendre la fin complète de la collecte (plus lente sur mobile).
+    if(e.candidate&&/ typ relay /.test(e.candidate.candidate)&&!relayTimer){
+      relayTimer=setTimeout(emitCode,500);
+    }
+  };
   pc.onicegatheringstatechange=()=>{
     if(pc.iceGatheringState==='complete')emitCode();
   };
-  // Filet de sécurité : si la collecte des candidats ICE traîne (réseau restrictif),
-  // on émet quand même le code après un délai plutôt que de rester bloqué sur
-  // "Création du code…" indéfiniment.
+  // Filet de sécurité : la collecte d'un candidat TURN peut prendre plus de temps
+  // qu'un simple STUN (allocation sur le serveur relais, surtout en 4G) — on
+  // laisse une marge large avant d'émettre le code quoi qu'il arrive, pour ne
+  // jamais rester bloqué indéfiniment sur "Création du code…" tout en laissant
+  // une vraie chance au TURN de secours de se mettre en place.
   setTimeout(()=>{
     emitCode();
     if(!pc.localDescription)netStatus("Impossible de créer le code — vérifie ta connexion réseau et réessaie.");
-  },4000);
+  },9000);
   pc.onconnectionstatechange=()=>{
     if(pc.connectionState==='failed'){
       net.connected=false; netStatus('❌ Connexion impossible avec cet ami·e (réseau trop restrictif). Réessaie, ou vérifie que le code a bien été copié en entier.');
