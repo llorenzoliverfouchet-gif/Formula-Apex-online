@@ -21,16 +21,32 @@
 {
   "imports": {
     "@trystero-p2p/core": "https://cdn.jsdelivr.net/npm/@trystero-p2p/core@0.25.2/dist/index.mjs",
-    "@trystero-p2p/torrent": "https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent@0.25.2/dist/index.mjs"
+    "@trystero-p2p/torrent": "https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent@0.25.2/dist/index.mjs",
+    "@trystero-p2p/nostr": "https://cdn.jsdelivr.net/npm/@trystero-p2p/nostr@0.25.2/dist/index.mjs",
+    "@noble/secp256k1": "https://cdn.jsdelivr.net/npm/@noble/secp256k1@3.1.0/index.js",
+    "@noble/hashes/sha2.js": "https://cdn.jsdelivr.net/npm/@noble/hashes@2.2.0/sha2.js",
+    "@noble/hashes/hmac.js": "https://cdn.jsdelivr.net/npm/@noble/hashes@2.2.0/hmac.js",
+    "@noble/hashes/sha3.js": "https://cdn.jsdelivr.net/npm/@noble/hashes@2.2.0/sha3.js",
+    "@noble/hashes/_md.js": "https://cdn.jsdelivr.net/npm/@noble/hashes@2.2.0/_md.js",
+    "@noble/hashes/_u64.js": "https://cdn.jsdelivr.net/npm/@noble/hashes@2.2.0/_u64.js",
+    "@noble/hashes/utils.js": "https://cdn.jsdelivr.net/npm/@noble/hashes@2.2.0/utils.js"
   }
 }
 </script>
 <script type="module">
-  import('@trystero-p2p/torrent').then(({joinRoom, selfId}) => {
+  // Nostr: relais temps réel (push), beaucoup plus rapide pour la découverte de pairs
+  // que le sondage périodique des trackers BitTorrent. Repli automatique sur le
+  // réseau BitTorrent si le chargement des modules Nostr échoue.
+  import('@trystero-p2p/nostr').then(({joinRoom, selfId}) => {
     window.Trystero = { joinRoom, selfId };
     window.dispatchEvent(new CustomEvent('trystero-ready'));
   }).catch(() => {
-    window.dispatchEvent(new CustomEvent('trystero-failed'));
+    import('@trystero-p2p/torrent').then(({joinRoom, selfId}) => {
+      window.Trystero = { joinRoom, selfId };
+      window.dispatchEvent(new CustomEvent('trystero-ready'));
+    }).catch(() => {
+      window.dispatchEvent(new CustomEvent('trystero-failed'));
+    });
   });
 </script>
 <style>
@@ -1852,10 +1868,13 @@ function ensureLobby(){
     try{presence.send(dispName(),opts);}catch(_){}
   }
   lobbyRoom.onPeerJoin=id=>{
-    // double envoi : le tout premier message juste après la connexion peut parfois
-    // se perdre (canal encore en train de s'ouvrir) — on retente vite pour compenser.
+    // rafale d'envois : le tout premier message juste après la connexion peut parfois
+    // se perdre (canal encore en train de s'ouvrir) — on retente à plusieurs reprises,
+    // rapprochées, pour que l'apparition soit perçue comme instantanée.
     broadcastPresence(id);
-    setTimeout(()=>broadcastPresence(id),700);
+    setTimeout(()=>broadcastPresence(id),150);
+    setTimeout(()=>broadcastPresence(id),400);
+    setTimeout(()=>broadcastPresence(id),900);
   };
   if(presenceHeartbeat)clearInterval(presenceHeartbeat);
   presenceHeartbeat=setInterval(()=>broadcastPresence(),1500);
