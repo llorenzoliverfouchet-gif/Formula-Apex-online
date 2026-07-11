@@ -147,6 +147,37 @@ body.mp #split{display:block}
 .lobbyRow button:disabled{opacity:0.45;pointer-events:none}
 .challengeBox{background:var(--panel2);border:1px solid var(--acc);border-radius:8px;
   padding:10px;margin:6px 0;font-size:13px;font-weight:700}
+.roomMembers{margin-top:6px}
+.roomMembers #roomMembersList{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.roomRow{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  padding:7px 10px;font-size:12px;font-weight:700}
+.roomRow.you{border-color:var(--acc)}
+.roomRow em{font-style:normal;color:var(--yel);font-size:10px;letter-spacing:.06em}
+.accountBar{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:14px 0}
+.accountBar span{font-size:12px;font-weight:700;color:var(--mut)}
+.accountBox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin:-6px 0 14px}
+.accountBox input[type=text],.accountBox input[type=password]{width:100%;background:var(--panel2);
+  border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:14px;font-weight:700;
+  padding:10px;margin:5px 0;font-family:'Chakra Petch',sans-serif}
+.accountBox input:focus{border-color:var(--acc);outline:none}
+.authError{margin-top:8px;font-size:12px;font-weight:700;color:#ff5b4d}
+.raceInviteBanner{background:var(--panel2);border:1px solid var(--acc);border-radius:10px;
+  padding:10px 12px;margin-bottom:14px;font-size:13px;font-weight:700}
+.raceInviteBanner .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
+.raceInviteBanner .row:first-child{margin-top:0}
+.raceInviteBanner button{flex:0 0 auto;width:auto;padding:6px 12px;font-size:11px;margin-top:0}
+.friendsBox{margin-top:6px}
+.friendsBox input[type=text]{flex:1;min-width:0}
+.friendMsg{margin-top:8px;font-size:12px;font-weight:700;color:var(--yel)}
+.friendRequests,.friendsList{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.friendRow{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.friendRow span{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.friendRow .dot2{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;background:#5b6470}
+.friendRow .dot2.on{background:#3dbd5e;box-shadow:0 0 6px #3dbd5e}
+.friendRow div{display:flex;gap:6px}
+.friendRow button{flex:0 0 auto;width:auto;padding:6px 10px;font-size:11px;margin-top:0}
 .chatBox{margin-top:6px}
 .chatMsgs{max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin:6px 0}
 .chatMsg{font-size:12px;padding:6px 9px;border-radius:8px;max-width:85%;word-break:break-word;line-height:1.35}
@@ -272,6 +303,27 @@ body.noTouch #kbHint{display:block}
     <h1>F1<span>APEX</span></h1>
     <p class="tag">10 écuries réelles · 11 circuits mythiques · La pole n'attend pas.</p>
 
+    <div id="accountBar" class="accountBar">
+      <span id="accountStatus">👤 Tu joues en invité</span>
+      <button id="accountToggleBtn" class="obtn" style="width:auto;padding:6px 12px;font-size:11px;margin-top:0">SE CONNECTER</button>
+    </div>
+    <div id="accountBox" class="accountBox" hidden>
+      <div id="authForms">
+        <input id="authUsername" type="text" maxlength="15" placeholder="Pseudo (3-15 caractères)" autocomplete="username">
+        <input id="authPassword" type="password" maxlength="60" placeholder="Mot de passe" autocomplete="current-password">
+        <div style="display:flex;gap:8px">
+          <button class="obtn prim" id="loginBtn" style="margin-top:0">SE CONNECTER</button>
+          <button class="obtn" id="registerBtn" style="margin-top:0">CRÉER UN COMPTE</button>
+        </div>
+        <div id="authError" class="authError" hidden></div>
+      </div>
+      <div id="accountInfo" hidden>
+        <p class="netHelp" style="margin-top:0">Connecté·e en tant que <b id="accountUsername"></b>.</p>
+        <button class="obtn" id="logoutBtn">SE DÉCONNECTER</button>
+      </div>
+    </div>
+    <div id="raceInviteBanner" class="raceInviteBanner" hidden></div>
+
     <div id="modeBlk">
     <div class="secHead"><span class="lbl">MODE</span><span id="modeName" class="val"></span></div>
     <div class="chips">
@@ -293,6 +345,21 @@ body.noTouch #kbHint{display:block}
           <button class="obtn prim" id="acceptChallengeBtn" style="margin-top:0">ACCEPTER</button>
           <button class="obtn" id="declineChallengeBtn" style="margin-top:0">REFUSER</button>
         </div>
+      </div>
+      <div id="roomMembers" class="roomMembers" hidden>
+        <label class="netLbl" style="margin-top:0">🏁 DANS TA PARTIE</label>
+        <div id="roomMembersList"></div>
+      </div>
+
+      <div id="friendsBox" class="friendsBox" hidden>
+        <label class="netLbl" style="margin-top:0">👥 AMIS</label>
+        <div style="display:flex;gap:8px">
+          <input id="addFriendInput" type="text" maxlength="15" placeholder="Pseudo à ajouter" autocomplete="off">
+          <button class="obtn" id="addFriendBtn" style="margin-top:0;width:auto;padding:10px 14px">AJOUTER</button>
+        </div>
+        <div id="friendMsg" class="friendMsg" hidden></div>
+        <div id="friendRequests"></div>
+        <div id="friendsList"><div class="lobbyEmpty">Aucun ami pour l'instant.</div></div>
       </div>
 
       <button type="button" id="codeToggleBtn" class="codeToggle" aria-expanded="false">
@@ -324,7 +391,6 @@ body.noTouch #kbHint{display:block}
         <p class="netHelp">Le micro fonctionne pour les parties lancées depuis le salon de joueurs en ligne (pas par code manuel).</p>
       </div>
     </div>
-    <audio id="remoteAudio" autoplay hidden></audio>
 
     <div id="netLockNote" class="netLockNote">🔒 Connecté·e — l'hôte choisit le circuit et les tours, tu choisis ton écurie ci-dessous.</div>
 
@@ -1214,16 +1280,17 @@ function buildWorld(){
 function spawnCars(){
   cars=[]; player=null; players=[];
   if(online){
-    const myTeam=TEAMS[sel.team];
-    const rTeam=TEAMS[net.remoteTeam!=null?net.remoteTeam:(sel.team+1)%TEAMS.length];
-    const mk=(team,slot,mine)=>{
+    const mk=(mate,slot,mine)=>{
       const idx=(N-10-slot*7+N)%N, lane=(slot%2?2.7:-2.7);
       const p=td.p[idx],n=td.n[idx],t=td.t[idx];
+      const teamIdx=mine?sel.team:(mate.team!=null?mate.team:(slot%TEAMS.length));
+      const team=TEAMS[teamIdx];
       const cm=makeCar(team);
-      const dname=mine?dispName():(net.remoteName||'ADVERSAIRE');
+      const dname=mine?dispName():mate.name;
       const car={team,isPlayer:mine,remote:!mine,
         name:dname,
         inp:mine?input:null,
+        mateRef:mine?null:mate,
         fuel:1,tank:team.tank||120,pitT:0,pitting:false,
         mesh:cm.g,hull:cm.hull,spin:cm.spin,steerG:cm.steer,
         pos:new THREE.Vector3(p.x+n.x*lane,0,p.z+n.z*lane),
@@ -1237,9 +1304,8 @@ function spawnCars(){
       scene.add(cm.g); cars.push(car);
       if(mine){player=car;players[0]=car;}
     };
-    const iAmHost=(net.role==='host');
-    mk(iAmHost?myTeam:rTeam,0,iAmHost);
-    mk(iAmHost?rTeam:myTeam,1,!iAmHost);
+    mk(null,0,true);
+    raceMates.forEach((m,i)=>mk(m,i+1,false));
     return;
   }
   const humans=mp?2:1;
@@ -1288,7 +1354,11 @@ function onLap(car){
   const now=performance.now();
   if(car.lap===1){ car.lapStart=now; return; }
   const lt=now-car.lapStart;
-  car.lastLap=lt; if(car.best==null||lt<car.best)car.best=lt;
+  car.lastLap=lt;
+  if(car.best==null||lt<car.best){
+    car.best=lt;
+    if(car===player&&authToken&&trackCur) saveBestTime(trackCur.name,TEAMS[sel.team].name,Math.round(lt));
+  }
   car.lapStart=now;
   if(car.lap>lapsTotal&&!car.finished){
     car.finished=true; car.finishTime=now-raceT0;
@@ -1689,14 +1759,260 @@ function updateAudio(){
 
 /* ================= EN LIGNE (WebRTC pair-à-pair) ================= */
 let online=false;
-const net={role:null,pc:null,dc:null,connected:false,remoteTeam:null,remoteName:null,rs:null,lastTx:0};
+const net={role:null,pc:null,dc:null,connected:false,lastTx:0};
 let myName='';
+const MAX_RACE_MATES=5; // + moi = 6 voitures humaines max dans une course en ligne
+
+/* ---------- coéquipiers/adversaires en ligne (1 ou plusieurs, quelle que soit la
+   méthode de connexion) : chacun est {peerId,name,team,isHost,rs} ---------- */
+let raceMates=[];
+function findMate(id){ return raceMates.find(m=>m.peerId===id); }
+function addMate(peerId,name,team,isHost){
+  let m=findMate(peerId);
+  if(!m){ m={peerId,name:(name||'PILOTE'),team:(team!=null?team:null),isHost:!!isHost,rs:null}; raceMates.push(m); }
+  else{ if(name)m.name=name; if(team!=null)m.team=team; if(isHost)m.isHost=true; }
+  return m;
+}
+function sendToMates(obj,targetPeerId){
+  const json=JSON.stringify(obj);
+  if(net.dc){ try{net.dc.send(json);}catch(_){} return; }
+  if(!lobbyActions)return;
+  const ids=targetPeerId?[targetPeerId]:raceMates.map(m=>m.peerId);
+  ids.forEach(id=>{ try{lobbyActions.game.send(json,{target:id});}catch(_){} });
+}
+function handleRoomInfo(fromPeerId,m){
+  addMate(fromPeerId, m.me&&m.me.name, m.me&&m.me.team, true);
+  (m.mates||[]).forEach(x=>{
+    addMate(x.peerId,x.name,x.team,false);
+    sendToMates({t:'team',team:sel.team,name:dispName()},x.peerId);
+  });
+  refreshMenu(); renderLobbyList();
+}
+function handleRoomJoin(fromPeerId,m){
+  addMate(m.peerId,m.name,null,false);
+  sendToMates({t:'team',team:sel.team,name:dispName()},m.peerId);
+  refreshMenu(); renderLobbyList();
+}
+function handleRaceMsg(peerId,raw){
+  let m; try{m=JSON.parse(raw);}catch(_){return;}
+  if(m.t==='roomInfo'){ handleRoomInfo(peerId,m); return; }
+  if(m.t==='roomJoin'){ handleRoomJoin(peerId,m); return; }
+  const mate=findMate(peerId); if(!mate)return;
+  if(m.t==='hello'||m.t==='team'||m.t==='cfg'){
+    mate.team=m.team;
+    if(m.name)mate.name=String(m.name).slice(0,15);
+    if(m.t==='cfg'&&mate.isHost&&net.role==='guest'){ sel.track=m.track; sel.laps=m.laps; }
+    if(state==='menu')refreshMenu();
+  }else if(m.t==='go'&&net.role==='guest'&&state==='menu'){
+    initAudio(); if(AC)AC.resume(); startRace();
+  }else if(m.t==='menu'&&state!=='menu'){
+    hudEls.finish.hidden=true; hudEls.pause.hidden=true; quitToMenu(true);
+  }else if(m.t==='s'){
+    mate.rs=Object.assign(m,{rx:performance.now()});
+  }else if(m.t==='chat'&&typeof m.msg==='string'){
+    addChatMessage('them',m.msg,mate.name);
+  }
+}
 
 /* ---------- salon en ligne (Trystero — sans serveur, sans compte) ---------- */
 let lobbyRoom=null, lobbyActions=null, lobbyPeers={};
-let pendingOutgoing=null, pendingIncoming=null;
-let duelPeerId=null, duelFakeDC=null;
+let pendingOutgoing=new Set(), pendingIncoming=null;
 function dispName(){ return (myName.trim()||'PILOTE').slice(0,15); }
+function startLobbyRace(iAmHost){
+  net.role=iAmHost?'host':'guest';
+  net.connected=true;
+  chatLog=[]; chatUnread=0; renderChat(); updateChatBadge();
+  netStatus('✅ CONNECTÉ ! '+(iAmHost
+    ?'Choisis circuit, tours et écurie, puis LANCER LA COURSE quand tout le monde est prêt.'
+    :"Choisis ton écurie — l'hôte va lancer la course."));
+  refreshMenu();
+}
+
+/* ---------- compte, amis, demandes de course (Supabase) ---------- */
+const SUPABASE_URL='https://nucpmtinjnagukrctdli.supabase.co';
+const SUPABASE_KEY='sb_publishable_sxW7lp1urjZM77kU38MRFQ_YaXoPLKu';
+let authToken=localStorage.getItem('f1apex_token')||null;
+let authUsername=null;
+let friendsList=[], onlineFriends=[];
+let presenceInterval=null, inviteInterval=null;
+
+async function sbRpc(fn,args){
+  const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+    body:JSON.stringify(args||{})
+  });
+  let data=null; try{data=await res.json();}catch(_){}
+  if(!res.ok) throw new Error((data&&(data.message||data.hint))||'Erreur serveur.');
+  return data;
+}
+async function doRegister(username,password){
+  const r=await sbRpc('register',{p_username:username,p_password:password});
+  authToken=r.token; authUsername=r.username;
+  localStorage.setItem('f1apex_token',authToken);
+  onAuthReady();
+}
+async function doLogin(username,password){
+  const r=await sbRpc('login',{p_username:username,p_password:password});
+  authToken=r.token; authUsername=r.username;
+  localStorage.setItem('f1apex_token',authToken);
+  onAuthReady();
+}
+async function doLogout(){
+  if(authToken){ try{await sbRpc('logout',{p_token:authToken});}catch(_){} }
+  authToken=null; authUsername=null; friendsList=[]; onlineFriends=[];
+  localStorage.removeItem('f1apex_token');
+  if(inviteInterval){clearInterval(inviteInterval);inviteInterval=null;}
+  if(presenceInterval){clearInterval(presenceInterval);presenceInterval=null;}
+  refreshAuthUI();
+}
+async function restoreSession(){
+  if(!authToken)return;
+  try{
+    const r=await sbRpc('whoami',{p_token:authToken});
+    authUsername=r.username;
+    onAuthReady();
+  }catch(_){
+    authToken=null; authUsername=null; localStorage.removeItem('f1apex_token'); refreshAuthUI();
+  }
+}
+function onAuthReady(){
+  if($('unameInput')&&!myName.trim()){ myName=authUsername.toUpperCase().slice(0,15); $('unameInput').value=myName; }
+  refreshAuthUI();
+  refreshFriends();
+  startInvitePolling();
+  if(lobbyRoom) startPresenceHeartbeat();
+}
+function refreshAuthUI(){
+  const loggedIn=!!authToken;
+  $('accountStatus').textContent=loggedIn?('👤 Connecté : '+authUsername):'👤 Tu joues en invité';
+  $('accountToggleBtn').textContent=loggedIn?'MON COMPTE':'SE CONNECTER';
+  $('authForms').hidden=loggedIn;
+  $('accountInfo').hidden=!loggedIn;
+  if(loggedIn) $('accountUsername').textContent=authUsername;
+  $('friendsBox').hidden=!loggedIn;
+  if(!loggedIn) $('raceInviteBanner').hidden=true;
+  renderFriends();
+}
+function showAuthError(msg){ const el=$('authError'); el.hidden=false; el.textContent=msg; }
+function showFriendMsg(text,isErr){
+  const el=$('friendMsg'); if(!el)return;
+  el.hidden=false; el.textContent=text; el.style.color=isErr?'#ff5b4d':'var(--yel)';
+  clearTimeout(showFriendMsg._t); showFriendMsg._t=setTimeout(()=>{el.hidden=true;},4000);
+}
+async function addFriendByName(username){
+  username=(username||'').trim();
+  if(!username||!authToken)return;
+  try{
+    await sbRpc('send_friend_request',{p_token:authToken,p_target_username:username});
+    showFriendMsg('Demande envoyée à '+username+' !');
+    const inp=$('addFriendInput'); if(inp)inp.value='';
+    refreshFriends();
+  }catch(err){ showFriendMsg(err.message,true); }
+}
+async function respondFriend(username,accept){
+  try{ await sbRpc('respond_friend_request',{p_token:authToken,p_requester_username:username,p_accept:accept}); refreshFriends(); }
+  catch(err){ showFriendMsg(err.message,true); }
+}
+async function refreshFriends(){
+  if(!authToken)return;
+  try{
+    const [friends,online]=await Promise.all([
+      sbRpc('list_friends',{p_token:authToken}),
+      sbRpc('list_online_friends',{p_token:authToken})
+    ]);
+    friendsList=friends||[]; onlineFriends=online||[];
+    renderFriends();
+  }catch(_){}
+}
+function renderFriends(){
+  const box=$('friendsBox'); if(!box)return;
+  if(!authToken)return;
+  const reqBox=$('friendRequests');
+  const incoming=friendsList.filter(f=>f.direction==='incoming'&&f.status==='pending');
+  reqBox.innerHTML=incoming.map(f=>
+    '<div class="friendRow"><span>'+escapeHtml(f.username)+' te demande en ami</span><div>'+
+    '<button class="obtn prim" data-acc="'+escapeHtml(f.username)+'">ACCEPTER</button>'+
+    '<button class="obtn" data-dec="'+escapeHtml(f.username)+'">REFUSER</button></div></div>'
+  ).join('');
+  reqBox.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>respondFriend(b.dataset.acc,true));
+  reqBox.querySelectorAll('[data-dec]').forEach(b=>b.onclick=()=>respondFriend(b.dataset.dec,false));
+  const accepted=friendsList.filter(f=>f.status==='accepted');
+  const listBox=$('friendsList');
+  if(!accepted.length){ listBox.innerHTML='<div class="lobbyEmpty">Aucun ami pour l\'instant.</div>'; }
+  else{
+    listBox.innerHTML=accepted.map(f=>{
+      const isOnline=onlineFriends.some(o=>o.username===f.username);
+      return '<div class="friendRow"><span><i class="dot2'+(isOnline?' on':'')+'"></i>'+escapeHtml(f.username)+'</span>'+
+        (isOnline?'<button class="obtn prim" data-inv="'+escapeHtml(f.username)+'">🏁 INVITER</button>':'<span style="color:var(--mut);font-size:11px">hors ligne</span>')+
+        '</div>';
+    }).join('');
+    listBox.querySelectorAll('[data-inv]').forEach(b=>b.onclick=()=>inviteFriendToRace(b.dataset.inv));
+  }
+}
+async function inviteFriendToRace(username){
+  try{
+    await sbRpc('send_race_invite',{p_token:authToken,p_target_username:username});
+    const of=onlineFriends.find(f=>f.username===username);
+    if(of&&of.peer_id&&lobbyActions&&lobbyPeers[of.peer_id]){
+      ensureLobby();
+      sel.mp=false; sel.net=true; refreshMenu();
+      pendingOutgoing.add(of.peer_id);
+      try{lobbyActions.challenge.send(dispName(),{target:of.peer_id});}catch(_){}
+      netStatus('Invitation envoyée à '+username+'…');
+      renderLobbyList();
+    }else{
+      showFriendMsg(username+' recevra une notification à sa prochaine connexion.');
+    }
+  }catch(err){ showFriendMsg(err.message,true); }
+}
+async function saveBestTime(track,team,timeMs){
+  try{ await sbRpc('set_best_time',{p_token:authToken,p_track:track,p_team:team,p_time_ms:timeMs}); }catch(_){}
+}
+function startPresenceHeartbeat(){
+  if(!authToken||!window.Trystero||!lobbyRoom)return;
+  const myPeerId=window.Trystero.selfId;
+  const tick=()=>{ if(authToken&&lobbyRoom) sbRpc('update_presence',{p_token:authToken,p_peer_id:myPeerId}).catch(()=>{}); };
+  tick();
+  if(presenceInterval)clearInterval(presenceInterval);
+  presenceInterval=setInterval(tick,20000);
+}
+function startInvitePolling(){
+  if(inviteInterval)clearInterval(inviteInterval);
+  const tick=async()=>{
+    if(!authToken)return;
+    try{ renderRaceInvites(await sbRpc('list_race_invites',{p_token:authToken})); }catch(_){}
+    refreshFriends();
+  };
+  tick();
+  inviteInterval=setInterval(tick,15000);
+}
+function renderRaceInvites(invites){
+  const box=$('raceInviteBanner'); if(!box)return;
+  invites=invites||[];
+  if(!invites.length){ box.hidden=true; return; }
+  box.hidden=false;
+  box.innerHTML=invites.map(inv=>
+    '<div class="row"><span>🏁 '+escapeHtml(inv.from_username)+' veut faire la course avec toi !</span>'+
+    '<button class="obtn prim" data-ans="'+inv.id+'" data-name="'+escapeHtml(inv.from_username)+'" data-peer="'+(inv.from_peer_id||'')+'">RÉPONDRE</button></div>'
+  ).join('');
+  box.querySelectorAll('[data-ans]').forEach(b=>b.onclick=()=>answerRaceInvite(+b.dataset.ans,b.dataset.name,b.dataset.peer));
+}
+async function answerRaceInvite(id,fromUsername,fromPeerId){
+  try{await sbRpc('dismiss_race_invite',{p_token:authToken,p_invite_id:id});}catch(_){}
+  sel.mp=false; sel.net=true; refreshMenu();
+  ensureLobby();
+  if(fromPeerId&&lobbyPeers[fromPeerId]){
+    pendingOutgoing.add(fromPeerId);
+    try{lobbyActions.challenge.send(dispName(),{target:fromPeerId});}catch(_){}
+    netStatus('Invitation envoyée à '+fromUsername+'…');
+    renderLobbyList();
+  }else{
+    netStatus(fromUsername+" n'est plus en ligne pour l'instant — retente plus tard.");
+  }
+  startInvitePolling();
+}
+
 function ensureLobby(){
   if(lobbyRoom||!window.Trystero) return;
   const {joinRoom}=window.Trystero;
@@ -1707,60 +2023,75 @@ function ensureLobby(){
   const decline=lobbyRoom.makeAction('dec');
   const game=lobbyRoom.makeAction('game');
   lobbyActions={presence,challenge,accept,decline,game};
-  lobbyRoom.onPeerJoin=id=>{ try{presence.send(dispName(),{target:id});}catch(_){} };
+  lobbyRoom.onPeerJoin=id=>{ try{presence.send({name:dispName(),username:authUsername||null},{target:id});}catch(_){} };
   lobbyRoom.onPeerLeave=id=>{
-    delete lobbyPeers[id]; renderLobbyList();
-    if(pendingOutgoing===id){pendingOutgoing=null;netStatus('Le joueur a quitté le salon.');}
+    delete lobbyPeers[id]; pendingOutgoing.delete(id);
     if(pendingIncoming&&pendingIncoming.peerId===id)pendingIncoming=null;
-    if(duelPeerId===id){
-      duelPeerId=null;
-      if(duelFakeDC){const dc=duelFakeDC;duelFakeDC=null;if(dc.onclose)dc.onclose();}
-      stopMic();
+    const mate=findMate(id);
+    if(mate){
+      const wasHost=mate.isHost;
+      raceMates=raceMates.filter(m=>m.peerId!==id);
+      stopMicStream(id);
+      if(state!=='menu'){
+        hudEls.camToast.textContent='⚠ '+(mate.name||'UN JOUEUR')+' DÉCONNECTÉ';
+        hudEls.camToast.hidden=false; toastT=3;
+      }
+      if(wasHost){
+        netStatus("⚠ L'hôte a quitté le salon.");
+        net.connected=false; raceMates=[]; stopMic();
+      }else if(raceMates.length===0){
+        net.connected=false; stopMic();
+      }
+      refreshMenu();
     }
     renderLobbyList();
   };
   lobbyRoom.onPeerStream=(stream,id)=>{
-    if(id!==duelPeerId)return;
-    const el=$('remoteAudio'); if(!el)return;
-    el.srcObject=stream; el.play().catch(()=>{});
+    if(!findMate(id))return;
+    playRemoteAudio(id,stream);
   };
-  presence.onMessage=(name,ctx)=>{ lobbyPeers[ctx.peerId]=String(name||'PILOTE').slice(0,15); renderLobbyList(); };
+  presence.onMessage=(payload,ctx)=>{
+    const name=(payload&&typeof payload==='object')?payload.name:payload;
+    const username=(payload&&typeof payload==='object')?payload.username:null;
+    lobbyPeers[ctx.peerId]={name:String(name||'PILOTE').slice(0,15),username:username||null};
+    renderLobbyList();
+  };
   challenge.onMessage=(name,ctx)=>{
-    if(net.connected||state!=='menu'){ try{decline.send('occupé',{target:ctx.peerId});}catch(_){} return; }
+    if((net.connected&&net.role==='guest')||state!=='menu'){ try{decline.send('occupé',{target:ctx.peerId});}catch(_){} return; }
     pendingIncoming={peerId:ctx.peerId,name:String(name||'PILOTE').slice(0,15)};
     renderLobbyList();
   };
   accept.onMessage=(_d,ctx)=>{
-    if(pendingOutgoing===ctx.peerId){ pendingOutgoing=null; startTrysteroMatch(ctx.peerId,true); renderLobbyList(); }
+    if(!pendingOutgoing.has(ctx.peerId))return;
+    pendingOutgoing.delete(ctx.peerId);
+    const wasEmpty=raceMates.length===0;
+    addMate(ctx.peerId, peerName(ctx.peerId), null, false);
+    if(wasEmpty) startLobbyRace(true);
+    sendToMates({t:'roomInfo', me:{name:dispName(),team:sel.team},
+      mates:raceMates.filter(m=>m.peerId!==ctx.peerId).map(m=>({peerId:m.peerId,name:m.name,team:m.team}))
+    }, ctx.peerId);
+    sendToMates({t:'team',team:sel.team,name:dispName()}, ctx.peerId);
+    raceMates.filter(m=>m.peerId!==ctx.peerId).forEach(m=>{
+      sendToMates({t:'roomJoin',peerId:ctx.peerId,name:peerName(ctx.peerId)}, m.peerId);
+    });
+    renderLobbyList(); refreshMenu();
   };
   decline.onMessage=(reason,ctx)=>{
-    if(pendingOutgoing===ctx.peerId){
-      pendingOutgoing=null;
-      netStatus((lobbyPeers[ctx.peerId]||'Le joueur')+' a refusé'+(reason?(' ('+reason+')'):'')+'.');
+    if(pendingOutgoing.has(ctx.peerId)){
+      pendingOutgoing.delete(ctx.peerId);
+      netStatus(peerName(ctx.peerId,'Le joueur')+' a refusé'+(reason?(' ('+reason+')'):'')+'.');
       renderLobbyList();
     }
   };
-  game.onMessage=(data,ctx)=>{
-    if(ctx.peerId===duelPeerId&&duelFakeDC&&duelFakeDC.onmessage) duelFakeDC.onmessage({data});
-  };
+  game.onMessage=(data,ctx)=>{ handleRaceMsg(ctx.peerId,data); };
   renderLobbyList();
+  startPresenceHeartbeat();
 }
 addEventListener('trystero-ready',()=>{ if(sel.net) ensureLobby(); });
 let lobbyUnavailable=false;
 addEventListener('trystero-failed',()=>{ lobbyUnavailable=true; renderLobbyList(); });
-function makeTrysteroDC(peerId){
-  duelPeerId=peerId;
-  const fakeDC={readyState:'open',onopen:null,onclose:null,onmessage:null,
-    send:(data)=>{ try{lobbyActions.game.send(data,{target:peerId});}catch(_){} }};
-  duelFakeDC=fakeDC;
-  return fakeDC;
-}
-function startTrysteroMatch(peerId,iAmHost){
-  net.role=iAmHost?'host':'guest';
-  const fakeDC=makeTrysteroDC(peerId);
-  bindDC(fakeDC);
-  if(fakeDC.onopen)fakeDC.onopen();
-}
+function peerName(id,fallback){ return (lobbyPeers[id]&&lobbyPeers[id].name)||fallback||'PILOTE'; }
+function peerUsername(id){ return lobbyPeers[id]&&lobbyPeers[id].username; }
 function renderLobbyList(){
   const box=$('lobbyList'); if(!box)return;
   const ids=Object.keys(lobbyPeers);
@@ -1769,26 +2100,47 @@ function renderLobbyList(){
   else if(!ids.length){ box.innerHTML='<div class="lobbyEmpty">Aucun autre joueur en ligne pour l\'instant…</div>'; }
   else{
     box.innerHTML='';
+    const iAmGuest=net.connected&&net.role==='guest';
+    const roomFull=raceMates.length>=MAX_RACE_MATES;
     ids.forEach(id=>{
       const row=document.createElement('div'); row.className='lobbyRow';
-      const nm=document.createElement('span'); nm.textContent=lobbyPeers[id];
+      const nm=document.createElement('span'); nm.textContent=peerName(id);
       const btn=document.createElement('button'); btn.className='obtn prim';
-      const busy=net.connected||!!pendingOutgoing||!!pendingIncoming;
-      if(pendingOutgoing===id){ btn.textContent='EN ATTENTE…'; btn.disabled=true; }
-      else{ btn.textContent='INVITER'; btn.disabled=busy; }
+      if(findMate(id)){ btn.textContent='DANS LA PARTIE ✓'; btn.disabled=true; }
+      else if(pendingOutgoing.has(id)){ btn.textContent='EN ATTENTE…'; btn.disabled=true; }
+      else{
+        btn.textContent='INVITER';
+        btn.disabled=iAmGuest||roomFull||!!pendingIncoming;
+      }
       btn.onclick=()=>{
-        if(net.connected||pendingOutgoing||pendingIncoming)return;
-        pendingOutgoing=id;
+        if(btn.disabled)return;
+        pendingOutgoing.add(id);
         try{lobbyActions.challenge.send(dispName(),{target:id});}catch(_){}
-        netStatus('Invitation envoyée à '+lobbyPeers[id]+'…');
+        netStatus('Invitation envoyée à '+peerName(id)+'…');
         renderLobbyList();
       };
-      row.append(nm,btn); box.appendChild(row);
+      row.append(nm);
+      const uname=peerUsername(id);
+      if(authToken&&uname){
+        const fbtn=document.createElement('button'); fbtn.className='obtn'; fbtn.textContent='➕ AMI';
+        fbtn.onclick=()=>addFriendByName(uname);
+        row.append(fbtn);
+      }
+      row.append(btn); box.appendChild(row);
     });
   }
   const ic=$('incomingChallenge');
   if(pendingIncoming){ ic.hidden=false; $('challengeText').textContent=pendingIncoming.name+' te propose une partie !'; }
   else ic.hidden=true;
+  renderRoomMembers();
+}
+function renderRoomMembers(){
+  const box=$('roomMembers'); if(!box)return;
+  if(!net.connected||raceMates.length===0){ box.hidden=true; return; }
+  box.hidden=false;
+  const meLine='<div class="roomRow you">MOI ('+escapeHtml(dispName())+')</div>';
+  const mateLines=raceMates.map(m=>'<div class="roomRow">'+escapeHtml(m.name)+(m.isHost?' <em>· HÔTE</em>':'')+'</div>').join('');
+  $('roomMembersList').innerHTML=meLine+mateLines;
 }
 function netStatus(t){$('netStatus').textContent=t;}
 function makePC(){
@@ -1812,47 +2164,25 @@ function bindDC(dc){
   net.dc=dc;
   dc.onopen=()=>{
     net.connected=true;
+    raceMates=[{peerId:'manual',name:'ADVERSAIRE',team:null,isHost:(net.role==='guest'),rs:null}];
     chatLog=[]; chatUnread=0; renderChat(); updateChatBadge();
     netStatus('✅ CONNECTÉ ! '+(net.role==='host'
       ?'Choisis circuit, tours et écurie, puis LANCER LA COURSE.'
       :"Choisis ton écurie — l'hôte va lancer la course."));
-    try{dc.send(JSON.stringify({t:'hello',team:sel.team,name:dispName()}));}catch(_){}
+    sendToMates({t:'hello',team:sel.team,name:dispName()});
     if(net.role==='host'){
-      try{dc.send(JSON.stringify({t:'cfg',track:sel.track,laps:sel.laps,team:sel.team,name:dispName()}));}catch(_){}
+      sendToMates({t:'cfg',track:sel.track,laps:sel.laps,team:sel.team,name:dispName()});
     }
     refreshMenu();
   };
   dc.onclose=()=>{
-    net.connected=false; netStatus('Connexion fermée.');
+    net.connected=false; raceMates=[]; netStatus('Connexion fermée.');
     if(state!=='menu'){
       hudEls.camToast.textContent='⚠ ADVERSAIRE DÉCONNECTÉ';
       hudEls.camToast.hidden=false; toastT=3;
     }
   };
-  dc.onmessage=e=>{
-    let m; try{m=JSON.parse(e.data);}catch(_){return;}
-    if(m.t==='hello'){ net.remoteTeam=m.team; if(m.name)net.remoteName=String(m.name).slice(0,15); }
-    else if(m.t==='team'){
-      net.remoteTeam=m.team;
-      if(m.name)net.remoteName=String(m.name).slice(0,15);
-      if(state==='menu')refreshMenu();
-    }
-    else if(m.t==='cfg'){
-      if(net.role==='guest'){ sel.track=m.track; sel.laps=m.laps; }
-      net.remoteTeam=m.team;
-      if(m.name)net.remoteName=String(m.name).slice(0,15);
-      if(state==='menu')refreshMenu();
-    }
-    else if(m.t==='go'&&net.role==='guest'&&state==='menu'){
-      initAudio(); if(AC)AC.resume(); startRace();
-    }
-    else if(m.t==='menu'&&state!=='menu'){
-      hudEls.finish.hidden=true; hudEls.pause.hidden=true;
-      quitToMenu(true);
-    }
-    else if(m.t==='s')net.rs=Object.assign(m,{rx:performance.now()});
-    else if(m.t==='chat'&&typeof m.msg==='string')addChatMessage('them',m.msg);
-  };
+  dc.onmessage=e=>{ handleRaceMsg('manual',e.data); };
 }
 
 /* ---------- chat texte (fonctionne salon comme code manuel) ---------- */
@@ -1860,8 +2190,8 @@ let chatLog=[], chatUnread=0, chatOpen=false;
 function escapeHtml(s){
   return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-function addChatMessage(who,text){
-  chatLog.push({who,text:String(text).slice(0,200)});
+function addChatMessage(who,text,fromName){
+  chatLog.push({who,text:String(text).slice(0,200),fromName:fromName||null});
   if(chatLog.length>50)chatLog.shift();
   renderChat();
   if(who==='them'&&!chatOpen){ chatUnread++; updateChatBadge(); }
@@ -1870,11 +2200,11 @@ function sendChatMsg(text){
   text=(text||'').trim().slice(0,200);
   if(!text||!net.connected)return;
   addChatMessage('me',text);
-  try{net.dc.send(JSON.stringify({t:'chat',msg:text}));}catch(_){}
+  sendToMates({t:'chat',msg:text});
 }
 function renderChat(){
   const html=chatLog.map(m=>{
-    const nm=m.who==='me'?'MOI':(net.remoteName||'ADVERSAIRE');
+    const nm=m.who==='me'?'MOI':(m.fromName||'ADVERSAIRE');
     return '<div class="chatMsg '+m.who+'"><span class="who">'+escapeHtml(nm)+'</span>'+escapeHtml(m.text)+'</div>';
   }).join('');
   ['chatMsgsMenu','chatMsgsRace'].forEach(id=>{
@@ -1898,6 +2228,16 @@ function wireChatInput(inputId,btnId){
 
 /* ---------- micro (salon en ligne uniquement — connexion gérée par Trystero) ---------- */
 let micStream=null, micTrack=null, micOn=false;
+const remoteAudioEls={};
+function playRemoteAudio(peerId,stream){
+  let el=remoteAudioEls[peerId];
+  if(!el){ el=document.createElement('audio'); el.autoplay=true; el.hidden=true; document.body.appendChild(el); remoteAudioEls[peerId]=el; }
+  el.srcObject=stream; el.play().catch(()=>{});
+}
+function stopMicStream(peerId){
+  const el=remoteAudioEls[peerId];
+  if(el){ el.srcObject=null; el.remove(); delete remoteAudioEls[peerId]; }
+}
 function updateMicBtn(){
   const b1=$('micBtn'); if(b1){ b1.textContent=micOn?'🎙️':'🎤'; b1.classList.toggle('live',micOn); }
   const b2=$('micBtnMenu'); if(b2){ b2.textContent=micOn?'🎙️ MICRO ACTIF':'🎤 ACTIVER LE MICRO'; b2.classList.toggle('live',micOn); }
@@ -1907,7 +2247,7 @@ function stopMic(){
   micStream=null; micTrack=null; micOn=false; updateMicBtn();
 }
 async function toggleMic(){
-  if(!lobbyRoom||!duelPeerId){
+  if(!lobbyRoom||raceMates.length===0){
     netStatus('Le micro fonctionne uniquement pour les parties lancées depuis le salon de joueurs en ligne.');
     return;
   }
@@ -1915,7 +2255,7 @@ async function toggleMic(){
     try{
       micStream=await navigator.mediaDevices.getUserMedia({audio:true});
       micTrack=micStream.getAudioTracks()[0];
-      lobbyRoom.addStream(micStream,{target:duelPeerId});
+      lobbyRoom.addStream(micStream,{target:raceMates.map(m=>m.peerId)});
     }catch(_){ netStatus('Micro refusé ou indisponible.'); return; }
   }
   micOn=!micOn;
@@ -1949,28 +2289,29 @@ async function applyRemoteCode(){
 }
 function sendCfgIfHost(){
   if(online&&net.role==='host'&&net.connected){
-    try{net.dc.send(JSON.stringify({t:'cfg',track:sel.track,laps:sel.laps,team:sel.team,name:dispName()}));}catch(_){}
+    sendToMates({t:'cfg',track:sel.track,laps:sel.laps,team:sel.team,name:dispName()});
   }
 }
 function sendTeam(){
   if(online&&net.connected){
-    try{net.dc.send(JSON.stringify({t:'team',team:sel.team,name:dispName()}));}catch(_){}
+    sendToMates({t:'team',team:sel.team,name:dispName()});
   }
 }
 function netTick(){
-  if(!net.dc||net.dc.readyState!=='open'||!player)return;
+  if(!net.connected||!player)return;
   const now=performance.now();
   if(now-net.lastTx<50)return;
   net.lastTx=now;
   const c=player;
-  try{net.dc.send(JSON.stringify({t:'s',
+  sendToMates({t:'s',
     x:+c.pos.x.toFixed(2),z:+c.pos.z.toFixed(2),
     h:+c.heading.toFixed(3),v:+c.speed.toFixed(2),
     lap:c.lap,idx:c.idx,f:+c.fuel.toFixed(3),
-    fin:c.finished?1:0,ft:Math.round(c.finishTime||0)}));}catch(_){}
+    fin:c.finished?1:0,ft:Math.round(c.finishTime||0)});
 }
 function updateRemote(c,dt){
-  const r=net.rs; if(!r)return;
+  const mate=c.mateRef; if(!mate)return;
+  const r=mate.rs; if(!r)return;
   const age=Math.min(0.4,(performance.now()-r.rx)/1000);
   const tx=r.x+Math.sin(r.h)*r.v*age, tz=r.z+Math.cos(r.h)*r.v*age;
   const k=Math.min(1,10*dt);
@@ -2174,7 +2515,7 @@ $('againBtn').onclick=()=>{
 $('menuBtn').onclick=()=>{hudEls.finish.hidden=true;quitToMenu();};
 function quitToMenu(fromNet){
   if(!fromNet && online && net.connected){
-    try{net.dc.send(JSON.stringify({t:'menu'}));}catch(_){}
+    sendToMates({t:'menu'});
   }
   state='menu';
   $('game').hidden=true; $('menu').hidden=false;
@@ -2274,17 +2615,16 @@ function buildMenu(){
   };
   $('unameInput').oninput=e=>{
     myName=e.target.value.slice(0,15);
-    if(online&&net.connected){
-      try{net.dc.send(JSON.stringify({t:'team',team:sel.team,name:dispName()}));}catch(_){}
-    }
-    if(lobbyActions){ try{lobbyActions.presence.send(dispName());}catch(_){} }
+    if(online&&net.connected){ sendToMates({t:'team',team:sel.team,name:dispName()}); }
+    if(lobbyActions){ try{lobbyActions.presence.send({name:dispName(),username:authUsername||null});}catch(_){} }
   };
   $('acceptChallengeBtn').onclick=()=>{
     if(!pendingIncoming)return;
-    const peerId=pendingIncoming.peerId;
+    const {peerId,name}=pendingIncoming;
     try{lobbyActions.accept.send(null,{target:peerId});}catch(_){}
     pendingIncoming=null;
-    startTrysteroMatch(peerId,false);
+    addMate(peerId,name,null,true);
+    startLobbyRace(false);
     renderLobbyList();
   };
   $('declineChallengeBtn').onclick=()=>{
@@ -2307,6 +2647,23 @@ function buildMenu(){
     $('codeToggleBtn').classList.toggle('open',!box.hidden);
     $('codeToggleBtn').setAttribute('aria-expanded',String(!box.hidden));
   };
+  $('accountToggleBtn').onclick=()=>{ const box=$('accountBox'); box.hidden=!box.hidden; };
+  $('loginBtn').onclick=async()=>{
+    $('authError').hidden=true;
+    try{ await doLogin($('authUsername').value,$('authPassword').value); $('accountBox').hidden=true; $('authPassword').value=''; }
+    catch(err){ showAuthError(err.message); }
+  };
+  $('registerBtn').onclick=async()=>{
+    $('authError').hidden=true;
+    try{ await doRegister($('authUsername').value,$('authPassword').value); $('accountBox').hidden=true; $('authPassword').value=''; }
+    catch(err){ showAuthError(err.message); }
+  };
+  $('logoutBtn').onclick=()=>{ doLogout(); };
+  $('addFriendBtn').onclick=()=>addFriendByName($('addFriendInput').value);
+  $('addFriendInput').addEventListener('keydown',e=>{
+    e.stopPropagation();
+    if(e.key==='Enter'){ e.preventDefault(); addFriendByName(e.target.value); }
+  });
   $('hostBtn').onclick=()=>{initAudio();hostGame();};
   $('joinBtn').onclick=()=>{
     net.role='guest';
@@ -2330,11 +2687,9 @@ function buildMenu(){
     initAudio(); if(AC)AC.resume();
     if(sel.net){
       if(net.role==='guest'){netStatus("C'est l'hôte qui lance la course — attends le départ !");return false;}
-      if(!net.connected){netStatus('Connecte un autre joueur avant de lancer (CRÉER UNE PARTIE).');return false;}
-      try{
-        net.dc.send(JSON.stringify({t:'cfg',track:sel.track,laps:sel.laps,team:sel.team}));
-        net.dc.send(JSON.stringify({t:'go'}));
-      }catch(_){netStatus('Envoi impossible — connexion perdue ?');return false;}
+      if(!net.connected||raceMates.length===0){netStatus('Invite au moins un joueur avant de lancer (voir plus haut).');return false;}
+      sendToMates({t:'cfg',track:sel.track,laps:sel.laps,team:sel.team,name:dispName()});
+      sendToMates({t:'go'});
     }
     startRace();
     return true;
@@ -2376,7 +2731,8 @@ function refreshMenu(){
   $('netLockNote').classList.toggle('show',guestLocked);
   $('startBtn').style.opacity=(sel.net&&net.role==='guest')?0.55:1;
   $('chatBox').hidden=!net.connected;
-  $('chatWithName').textContent=net.remoteName||"L'AUTRE JOUEUR";
+  $('chatWithName').textContent=raceMates.length?raceMates.map(m=>m.name).join(', '):"L'AUTRE JOUEUR";
+  renderLobbyList();
 }
 
 function startRace(){
@@ -2404,6 +2760,7 @@ function startRace(){
 /* ================= DÉMARRAGE ================= */
 initRenderer();
 buildMenu();
+restoreSession();
 requestAnimationFrame(loop);
 </script>
 <script>
