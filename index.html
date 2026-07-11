@@ -153,31 +153,6 @@ body.mp #split{display:block}
   padding:7px 10px;font-size:12px;font-weight:700}
 .roomRow.you{border-color:var(--acc)}
 .roomRow em{font-style:normal;color:var(--yel);font-size:10px;letter-spacing:.06em}
-.accountBar{display:flex;align-items:center;justify-content:space-between;gap:8px;
-  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:14px 0}
-.accountBar span{font-size:12px;font-weight:700;color:var(--mut)}
-.accountBox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin:-6px 0 14px}
-.accountBox input[type=text],.accountBox input[type=password]{width:100%;background:var(--panel2);
-  border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:14px;font-weight:700;
-  padding:10px;margin:5px 0;font-family:'Chakra Petch',sans-serif}
-.accountBox input:focus{border-color:var(--acc);outline:none}
-.authError{margin-top:8px;font-size:12px;font-weight:700;color:#ff5b4d}
-.raceInviteBanner{background:var(--panel2);border:1px solid var(--acc);border-radius:10px;
-  padding:10px 12px;margin-bottom:14px;font-size:13px;font-weight:700}
-.raceInviteBanner .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
-.raceInviteBanner .row:first-child{margin-top:0}
-.raceInviteBanner button{flex:0 0 auto;width:auto;padding:6px 12px;font-size:11px;margin-top:0}
-.friendsBox{margin-top:6px}
-.friendsBox input[type=text]{flex:1;min-width:0}
-.friendMsg{margin-top:8px;font-size:12px;font-weight:700;color:var(--yel)}
-.friendRequests,.friendsList{margin-top:8px;display:flex;flex-direction:column;gap:6px}
-.friendRow{display:flex;align-items:center;justify-content:space-between;gap:8px;
-  background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.friendRow span{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.friendRow .dot2{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;background:#5b6470}
-.friendRow .dot2.on{background:#3dbd5e;box-shadow:0 0 6px #3dbd5e}
-.friendRow div{display:flex;gap:6px}
-.friendRow button{flex:0 0 auto;width:auto;padding:6px 10px;font-size:11px;margin-top:0}
 .chatBox{margin-top:6px}
 .chatMsgs{max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin:6px 0}
 .chatMsg{font-size:12px;padding:6px 9px;border-radius:8px;max-width:85%;word-break:break-word;line-height:1.35}
@@ -303,27 +278,6 @@ body.noTouch #kbHint{display:block}
     <h1>F1<span>APEX</span></h1>
     <p class="tag">10 écuries réelles · 11 circuits mythiques · La pole n'attend pas.</p>
 
-    <div id="accountBar" class="accountBar">
-      <span id="accountStatus">👤 Tu joues en invité</span>
-      <button id="accountToggleBtn" class="obtn" style="width:auto;padding:6px 12px;font-size:11px;margin-top:0">SE CONNECTER</button>
-    </div>
-    <div id="accountBox" class="accountBox" hidden>
-      <div id="authForms">
-        <input id="authUsername" type="text" maxlength="15" placeholder="Pseudo (3-15 caractères)" autocomplete="username">
-        <input id="authPassword" type="password" maxlength="60" placeholder="Mot de passe" autocomplete="current-password">
-        <div style="display:flex;gap:8px">
-          <button class="obtn prim" id="loginBtn" style="margin-top:0">SE CONNECTER</button>
-          <button class="obtn" id="registerBtn" style="margin-top:0">CRÉER UN COMPTE</button>
-        </div>
-        <div id="authError" class="authError" hidden></div>
-      </div>
-      <div id="accountInfo" hidden>
-        <p class="netHelp" style="margin-top:0">Connecté·e en tant que <b id="accountUsername"></b>.</p>
-        <button class="obtn" id="logoutBtn">SE DÉCONNECTER</button>
-      </div>
-    </div>
-    <div id="raceInviteBanner" class="raceInviteBanner" hidden></div>
-
     <div id="modeBlk">
     <div class="secHead"><span class="lbl">MODE</span><span id="modeName" class="val"></span></div>
     <div class="chips">
@@ -349,17 +303,6 @@ body.noTouch #kbHint{display:block}
       <div id="roomMembers" class="roomMembers" hidden>
         <label class="netLbl" style="margin-top:0">🏁 DANS TA PARTIE</label>
         <div id="roomMembersList"></div>
-      </div>
-
-      <div id="friendsBox" class="friendsBox" hidden>
-        <label class="netLbl" style="margin-top:0">👥 AMIS</label>
-        <div style="display:flex;gap:8px">
-          <input id="addFriendInput" type="text" maxlength="15" placeholder="Pseudo à ajouter" autocomplete="off">
-          <button class="obtn" id="addFriendBtn" style="margin-top:0;width:auto;padding:10px 14px">AJOUTER</button>
-        </div>
-        <div id="friendMsg" class="friendMsg" hidden></div>
-        <div id="friendRequests"></div>
-        <div id="friendsList"><div class="lobbyEmpty">Aucun ami pour l'instant.</div></div>
       </div>
 
       <button type="button" id="codeToggleBtn" class="codeToggle" aria-expanded="false">
@@ -1354,11 +1297,7 @@ function onLap(car){
   const now=performance.now();
   if(car.lap===1){ car.lapStart=now; return; }
   const lt=now-car.lapStart;
-  car.lastLap=lt;
-  if(car.best==null||lt<car.best){
-    car.best=lt;
-    if(car===player&&authToken&&trackCur) saveBestTime(trackCur.name,TEAMS[sel.team].name,Math.round(lt));
-  }
+  car.lastLap=lt; if(car.best==null||lt<car.best)car.best=lt;
   car.lapStart=now;
   if(car.lap>lapsTotal&&!car.finished){
     car.finished=true; car.finishTime=now-raceT0;
@@ -1827,192 +1766,6 @@ function startLobbyRace(iAmHost){
     :"Choisis ton écurie — l'hôte va lancer la course."));
   refreshMenu();
 }
-
-/* ---------- compte, amis, demandes de course (Supabase) ---------- */
-const SUPABASE_URL='https://nucpmtinjnagukrctdli.supabase.co';
-const SUPABASE_KEY='sb_publishable_sxW7lp1urjZM77kU38MRFQ_YaXoPLKu';
-let authToken=localStorage.getItem('f1apex_token')||null;
-let authUsername=null;
-let friendsList=[], onlineFriends=[];
-let presenceInterval=null, inviteInterval=null;
-
-async function sbRpc(fn,args){
-  const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{
-    method:'POST',
-    headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-    body:JSON.stringify(args||{})
-  });
-  let data=null; try{data=await res.json();}catch(_){}
-  if(!res.ok) throw new Error((data&&(data.message||data.hint))||'Erreur serveur.');
-  return data;
-}
-async function doRegister(username,password){
-  const r=await sbRpc('register',{p_username:username,p_password:password});
-  authToken=r.token; authUsername=r.username;
-  localStorage.setItem('f1apex_token',authToken);
-  onAuthReady();
-}
-async function doLogin(username,password){
-  const r=await sbRpc('login',{p_username:username,p_password:password});
-  authToken=r.token; authUsername=r.username;
-  localStorage.setItem('f1apex_token',authToken);
-  onAuthReady();
-}
-async function doLogout(){
-  if(authToken){ try{await sbRpc('logout',{p_token:authToken});}catch(_){} }
-  authToken=null; authUsername=null; friendsList=[]; onlineFriends=[];
-  localStorage.removeItem('f1apex_token');
-  if(inviteInterval){clearInterval(inviteInterval);inviteInterval=null;}
-  if(presenceInterval){clearInterval(presenceInterval);presenceInterval=null;}
-  refreshAuthUI();
-}
-async function restoreSession(){
-  if(!authToken)return;
-  try{
-    const r=await sbRpc('whoami',{p_token:authToken});
-    authUsername=r.username;
-    onAuthReady();
-  }catch(_){
-    authToken=null; authUsername=null; localStorage.removeItem('f1apex_token'); refreshAuthUI();
-  }
-}
-function onAuthReady(){
-  if($('unameInput')&&!myName.trim()){ myName=authUsername.toUpperCase().slice(0,15); $('unameInput').value=myName; }
-  refreshAuthUI();
-  refreshFriends();
-  startInvitePolling();
-  if(lobbyRoom) startPresenceHeartbeat();
-}
-function refreshAuthUI(){
-  const loggedIn=!!authToken;
-  $('accountStatus').textContent=loggedIn?('👤 Connecté : '+authUsername):'👤 Tu joues en invité';
-  $('accountToggleBtn').textContent=loggedIn?'MON COMPTE':'SE CONNECTER';
-  $('authForms').hidden=loggedIn;
-  $('accountInfo').hidden=!loggedIn;
-  if(loggedIn) $('accountUsername').textContent=authUsername;
-  $('friendsBox').hidden=!loggedIn;
-  if(!loggedIn) $('raceInviteBanner').hidden=true;
-  renderFriends();
-}
-function showAuthError(msg){ const el=$('authError'); el.hidden=false; el.textContent=msg; }
-function showFriendMsg(text,isErr){
-  const el=$('friendMsg'); if(!el)return;
-  el.hidden=false; el.textContent=text; el.style.color=isErr?'#ff5b4d':'var(--yel)';
-  clearTimeout(showFriendMsg._t); showFriendMsg._t=setTimeout(()=>{el.hidden=true;},4000);
-}
-async function addFriendByName(username){
-  username=(username||'').trim();
-  if(!username||!authToken)return;
-  try{
-    await sbRpc('send_friend_request',{p_token:authToken,p_target_username:username});
-    showFriendMsg('Demande envoyée à '+username+' !');
-    const inp=$('addFriendInput'); if(inp)inp.value='';
-    refreshFriends();
-  }catch(err){ showFriendMsg(err.message,true); }
-}
-async function respondFriend(username,accept){
-  try{ await sbRpc('respond_friend_request',{p_token:authToken,p_requester_username:username,p_accept:accept}); refreshFriends(); }
-  catch(err){ showFriendMsg(err.message,true); }
-}
-async function refreshFriends(){
-  if(!authToken)return;
-  try{
-    const [friends,online]=await Promise.all([
-      sbRpc('list_friends',{p_token:authToken}),
-      sbRpc('list_online_friends',{p_token:authToken})
-    ]);
-    friendsList=friends||[]; onlineFriends=online||[];
-    renderFriends();
-  }catch(_){}
-}
-function renderFriends(){
-  const box=$('friendsBox'); if(!box)return;
-  if(!authToken)return;
-  const reqBox=$('friendRequests');
-  const incoming=friendsList.filter(f=>f.direction==='incoming'&&f.status==='pending');
-  reqBox.innerHTML=incoming.map(f=>
-    '<div class="friendRow"><span>'+escapeHtml(f.username)+' te demande en ami</span><div>'+
-    '<button class="obtn prim" data-acc="'+escapeHtml(f.username)+'">ACCEPTER</button>'+
-    '<button class="obtn" data-dec="'+escapeHtml(f.username)+'">REFUSER</button></div></div>'
-  ).join('');
-  reqBox.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>respondFriend(b.dataset.acc,true));
-  reqBox.querySelectorAll('[data-dec]').forEach(b=>b.onclick=()=>respondFriend(b.dataset.dec,false));
-  const accepted=friendsList.filter(f=>f.status==='accepted');
-  const listBox=$('friendsList');
-  if(!accepted.length){ listBox.innerHTML='<div class="lobbyEmpty">Aucun ami pour l\'instant.</div>'; }
-  else{
-    listBox.innerHTML=accepted.map(f=>{
-      const isOnline=onlineFriends.some(o=>o.username===f.username);
-      return '<div class="friendRow"><span><i class="dot2'+(isOnline?' on':'')+'"></i>'+escapeHtml(f.username)+'</span>'+
-        (isOnline?'<button class="obtn prim" data-inv="'+escapeHtml(f.username)+'">🏁 INVITER</button>':'<span style="color:var(--mut);font-size:11px">hors ligne</span>')+
-        '</div>';
-    }).join('');
-    listBox.querySelectorAll('[data-inv]').forEach(b=>b.onclick=()=>inviteFriendToRace(b.dataset.inv));
-  }
-}
-async function inviteFriendToRace(username){
-  try{
-    await sbRpc('send_race_invite',{p_token:authToken,p_target_username:username});
-    const of=onlineFriends.find(f=>f.username===username);
-    if(of&&of.peer_id&&lobbyActions&&lobbyPeers[of.peer_id]){
-      ensureLobby();
-      sel.mp=false; sel.net=true; refreshMenu();
-      pendingOutgoing.add(of.peer_id);
-      try{lobbyActions.challenge.send(dispName(),{target:of.peer_id});}catch(_){}
-      netStatus('Invitation envoyée à '+username+'…');
-      renderLobbyList();
-    }else{
-      showFriendMsg(username+' recevra une notification à sa prochaine connexion.');
-    }
-  }catch(err){ showFriendMsg(err.message,true); }
-}
-async function saveBestTime(track,team,timeMs){
-  try{ await sbRpc('set_best_time',{p_token:authToken,p_track:track,p_team:team,p_time_ms:timeMs}); }catch(_){}
-}
-function startPresenceHeartbeat(){
-  if(!authToken||!window.Trystero||!lobbyRoom)return;
-  const myPeerId=window.Trystero.selfId;
-  const tick=()=>{ if(authToken&&lobbyRoom) sbRpc('update_presence',{p_token:authToken,p_peer_id:myPeerId}).catch(()=>{}); };
-  tick();
-  if(presenceInterval)clearInterval(presenceInterval);
-  presenceInterval=setInterval(tick,20000);
-}
-function startInvitePolling(){
-  if(inviteInterval)clearInterval(inviteInterval);
-  const tick=async()=>{
-    if(!authToken)return;
-    try{ renderRaceInvites(await sbRpc('list_race_invites',{p_token:authToken})); }catch(_){}
-    refreshFriends();
-  };
-  tick();
-  inviteInterval=setInterval(tick,15000);
-}
-function renderRaceInvites(invites){
-  const box=$('raceInviteBanner'); if(!box)return;
-  invites=invites||[];
-  if(!invites.length){ box.hidden=true; return; }
-  box.hidden=false;
-  box.innerHTML=invites.map(inv=>
-    '<div class="row"><span>🏁 '+escapeHtml(inv.from_username)+' veut faire la course avec toi !</span>'+
-    '<button class="obtn prim" data-ans="'+inv.id+'" data-name="'+escapeHtml(inv.from_username)+'" data-peer="'+(inv.from_peer_id||'')+'">RÉPONDRE</button></div>'
-  ).join('');
-  box.querySelectorAll('[data-ans]').forEach(b=>b.onclick=()=>answerRaceInvite(+b.dataset.ans,b.dataset.name,b.dataset.peer));
-}
-async function answerRaceInvite(id,fromUsername,fromPeerId){
-  try{await sbRpc('dismiss_race_invite',{p_token:authToken,p_invite_id:id});}catch(_){}
-  sel.mp=false; sel.net=true; refreshMenu();
-  ensureLobby();
-  if(fromPeerId&&lobbyPeers[fromPeerId]){
-    pendingOutgoing.add(fromPeerId);
-    try{lobbyActions.challenge.send(dispName(),{target:fromPeerId});}catch(_){}
-    netStatus('Invitation envoyée à '+fromUsername+'…');
-    renderLobbyList();
-  }else{
-    netStatus(fromUsername+" n'est plus en ligne pour l'instant — retente plus tard.");
-  }
-  startInvitePolling();
-}
-
 function ensureLobby(){
   if(lobbyRoom||!window.Trystero) return;
   const {joinRoom}=window.Trystero;
@@ -2023,7 +1776,7 @@ function ensureLobby(){
   const decline=lobbyRoom.makeAction('dec');
   const game=lobbyRoom.makeAction('game');
   lobbyActions={presence,challenge,accept,decline,game};
-  lobbyRoom.onPeerJoin=id=>{ try{presence.send({name:dispName(),username:authUsername||null},{target:id});}catch(_){} };
+  lobbyRoom.onPeerJoin=id=>{ try{presence.send(dispName(),{target:id});}catch(_){} };
   lobbyRoom.onPeerLeave=id=>{
     delete lobbyPeers[id]; pendingOutgoing.delete(id);
     if(pendingIncoming&&pendingIncoming.peerId===id)pendingIncoming=null;
@@ -2050,12 +1803,7 @@ function ensureLobby(){
     if(!findMate(id))return;
     playRemoteAudio(id,stream);
   };
-  presence.onMessage=(payload,ctx)=>{
-    const name=(payload&&typeof payload==='object')?payload.name:payload;
-    const username=(payload&&typeof payload==='object')?payload.username:null;
-    lobbyPeers[ctx.peerId]={name:String(name||'PILOTE').slice(0,15),username:username||null};
-    renderLobbyList();
-  };
+  presence.onMessage=(name,ctx)=>{ lobbyPeers[ctx.peerId]=String(name||'PILOTE').slice(0,15); renderLobbyList(); };
   challenge.onMessage=(name,ctx)=>{
     if((net.connected&&net.role==='guest')||state!=='menu'){ try{decline.send('occupé',{target:ctx.peerId});}catch(_){} return; }
     pendingIncoming={peerId:ctx.peerId,name:String(name||'PILOTE').slice(0,15)};
@@ -2065,33 +1813,30 @@ function ensureLobby(){
     if(!pendingOutgoing.has(ctx.peerId))return;
     pendingOutgoing.delete(ctx.peerId);
     const wasEmpty=raceMates.length===0;
-    addMate(ctx.peerId, peerName(ctx.peerId), null, false);
+    addMate(ctx.peerId, lobbyPeers[ctx.peerId], null, false);
     if(wasEmpty) startLobbyRace(true);
     sendToMates({t:'roomInfo', me:{name:dispName(),team:sel.team},
       mates:raceMates.filter(m=>m.peerId!==ctx.peerId).map(m=>({peerId:m.peerId,name:m.name,team:m.team}))
     }, ctx.peerId);
     sendToMates({t:'team',team:sel.team,name:dispName()}, ctx.peerId);
     raceMates.filter(m=>m.peerId!==ctx.peerId).forEach(m=>{
-      sendToMates({t:'roomJoin',peerId:ctx.peerId,name:peerName(ctx.peerId)}, m.peerId);
+      sendToMates({t:'roomJoin',peerId:ctx.peerId,name:lobbyPeers[ctx.peerId]||'PILOTE'}, m.peerId);
     });
     renderLobbyList(); refreshMenu();
   };
   decline.onMessage=(reason,ctx)=>{
     if(pendingOutgoing.has(ctx.peerId)){
       pendingOutgoing.delete(ctx.peerId);
-      netStatus(peerName(ctx.peerId,'Le joueur')+' a refusé'+(reason?(' ('+reason+')'):'')+'.');
+      netStatus((lobbyPeers[ctx.peerId]||'Le joueur')+' a refusé'+(reason?(' ('+reason+')'):'')+'.');
       renderLobbyList();
     }
   };
   game.onMessage=(data,ctx)=>{ handleRaceMsg(ctx.peerId,data); };
   renderLobbyList();
-  startPresenceHeartbeat();
 }
 addEventListener('trystero-ready',()=>{ if(sel.net) ensureLobby(); });
 let lobbyUnavailable=false;
 addEventListener('trystero-failed',()=>{ lobbyUnavailable=true; renderLobbyList(); });
-function peerName(id,fallback){ return (lobbyPeers[id]&&lobbyPeers[id].name)||fallback||'PILOTE'; }
-function peerUsername(id){ return lobbyPeers[id]&&lobbyPeers[id].username; }
 function renderLobbyList(){
   const box=$('lobbyList'); if(!box)return;
   const ids=Object.keys(lobbyPeers);
@@ -2104,7 +1849,7 @@ function renderLobbyList(){
     const roomFull=raceMates.length>=MAX_RACE_MATES;
     ids.forEach(id=>{
       const row=document.createElement('div'); row.className='lobbyRow';
-      const nm=document.createElement('span'); nm.textContent=peerName(id);
+      const nm=document.createElement('span'); nm.textContent=lobbyPeers[id];
       const btn=document.createElement('button'); btn.className='obtn prim';
       if(findMate(id)){ btn.textContent='DANS LA PARTIE ✓'; btn.disabled=true; }
       else if(pendingOutgoing.has(id)){ btn.textContent='EN ATTENTE…'; btn.disabled=true; }
@@ -2116,17 +1861,10 @@ function renderLobbyList(){
         if(btn.disabled)return;
         pendingOutgoing.add(id);
         try{lobbyActions.challenge.send(dispName(),{target:id});}catch(_){}
-        netStatus('Invitation envoyée à '+peerName(id)+'…');
+        netStatus('Invitation envoyée à '+lobbyPeers[id]+'…');
         renderLobbyList();
       };
-      row.append(nm);
-      const uname=peerUsername(id);
-      if(authToken&&uname){
-        const fbtn=document.createElement('button'); fbtn.className='obtn'; fbtn.textContent='➕ AMI';
-        fbtn.onclick=()=>addFriendByName(uname);
-        row.append(fbtn);
-      }
-      row.append(btn); box.appendChild(row);
+      row.append(nm,btn); box.appendChild(row);
     });
   }
   const ic=$('incomingChallenge');
@@ -2616,7 +2354,7 @@ function buildMenu(){
   $('unameInput').oninput=e=>{
     myName=e.target.value.slice(0,15);
     if(online&&net.connected){ sendToMates({t:'team',team:sel.team,name:dispName()}); }
-    if(lobbyActions){ try{lobbyActions.presence.send({name:dispName(),username:authUsername||null});}catch(_){} }
+    if(lobbyActions){ try{lobbyActions.presence.send(dispName());}catch(_){} }
   };
   $('acceptChallengeBtn').onclick=()=>{
     if(!pendingIncoming)return;
@@ -2647,23 +2385,6 @@ function buildMenu(){
     $('codeToggleBtn').classList.toggle('open',!box.hidden);
     $('codeToggleBtn').setAttribute('aria-expanded',String(!box.hidden));
   };
-  $('accountToggleBtn').onclick=()=>{ const box=$('accountBox'); box.hidden=!box.hidden; };
-  $('loginBtn').onclick=async()=>{
-    $('authError').hidden=true;
-    try{ await doLogin($('authUsername').value,$('authPassword').value); $('accountBox').hidden=true; $('authPassword').value=''; }
-    catch(err){ showAuthError(err.message); }
-  };
-  $('registerBtn').onclick=async()=>{
-    $('authError').hidden=true;
-    try{ await doRegister($('authUsername').value,$('authPassword').value); $('accountBox').hidden=true; $('authPassword').value=''; }
-    catch(err){ showAuthError(err.message); }
-  };
-  $('logoutBtn').onclick=()=>{ doLogout(); };
-  $('addFriendBtn').onclick=()=>addFriendByName($('addFriendInput').value);
-  $('addFriendInput').addEventListener('keydown',e=>{
-    e.stopPropagation();
-    if(e.key==='Enter'){ e.preventDefault(); addFriendByName(e.target.value); }
-  });
   $('hostBtn').onclick=()=>{initAudio();hostGame();};
   $('joinBtn').onclick=()=>{
     net.role='guest';
@@ -2760,7 +2481,6 @@ function startRace(){
 /* ================= DÉMARRAGE ================= */
 initRenderer();
 buildMenu();
-restoreSession();
 requestAnimationFrame(loop);
 </script>
 <script>
