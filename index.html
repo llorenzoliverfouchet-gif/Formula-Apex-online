@@ -1815,6 +1815,7 @@ function handleRaceMsg(peerId,raw){
 /* ---------- salon en ligne (Trystero — sans serveur, sans compte) ---------- */
 let lobbyRoom=null, lobbyActions=null, lobbyPeers={};
 let pendingOutgoing=new Set(), pendingIncoming=null;
+let presenceHeartbeat=null;
 function dispName(){ return (myName.trim()||'PILOTE').slice(0,15); }
 function startLobbyRace(iAmHost){
   net.role=iAmHost?'host':'guest';
@@ -1835,7 +1836,18 @@ function ensureLobby(){
   const decline=lobbyRoom.makeAction('dec');
   const game=lobbyRoom.makeAction('game');
   lobbyActions={presence,challenge,accept,decline,game};
-  lobbyRoom.onPeerJoin=id=>{ try{presence.send(dispName(),{target:id});}catch(_){} };
+  function broadcastPresence(target){
+    const opts=target?{target}:undefined;
+    try{presence.send(dispName(),opts);}catch(_){}
+  }
+  lobbyRoom.onPeerJoin=id=>{
+    // double envoi : le tout premier message juste après la connexion peut parfois
+    // se perdre (canal encore en train de s'ouvrir) — on retente vite pour compenser.
+    broadcastPresence(id);
+    setTimeout(()=>broadcastPresence(id),700);
+  };
+  if(presenceHeartbeat)clearInterval(presenceHeartbeat);
+  presenceHeartbeat=setInterval(()=>broadcastPresence(),3000);
   lobbyRoom.onPeerLeave=id=>{
     delete lobbyPeers[id]; pendingOutgoing.delete(id);
     if(pendingIncoming&&pendingIncoming.peerId===id)pendingIncoming=null;
