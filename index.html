@@ -192,6 +192,14 @@ body.mp #split{display:block}
   padding:10px;margin:5px 0;font-family:'Chakra Petch',sans-serif}
 #netBox input[type=text]:focus{border-color:var(--acc);outline:none}
 #netBox .obtn{padding:10px;font-size:13px;margin-top:6px}
+.lobbyHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+#refreshLobbyBtn{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);
+  color:var(--acc);font-size:10px;font-weight:700;letter-spacing:.08em;
+  padding:6px 10px;clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  transition:transform .15s}
+#refreshLobbyBtn:active{transform:scale(.94)}
+#refreshLobbyBtn.spin{animation:refreshSpin .6s linear}
+@keyframes refreshSpin{0%{opacity:.5}50%{opacity:1}100%{opacity:.5}}
 #lobbyList{margin:5px 0;max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
 .lobbyEmpty{font-size:12px;color:var(--mut);padding:8px 2px}
 .lobbyRow{display:flex;align-items:center;justify-content:space-between;gap:8px;
@@ -350,7 +358,10 @@ body.noTouch #kbHint{display:block}
       <label class="netLbl" style="margin-top:0">TON PSEUDO — affiché en hologramme au-dessus de ta voiture</label>
       <input id="unameInput" type="text" maxlength="15" placeholder="PILOTE (15 car. max)" autocomplete="off">
 
-      <label class="netLbl">JOUEURS EN LIGNE — clique pour inviter</label>
+      <div class="lobbyHead">
+        <label class="netLbl" style="margin:0">JOUEURS EN LIGNE — clique pour inviter</label>
+        <button type="button" id="refreshLobbyBtn" title="Actualiser la liste">🔄 ACTUALISER</button>
+      </div>
       <div id="lobbyList"><div class="lobbyEmpty">Connexion au salon…</div></div>
       <div id="incomingChallenge" class="challengeBox" hidden>
         <span id="challengeText"></span>
@@ -1847,7 +1858,7 @@ function ensureLobby(){
     setTimeout(()=>broadcastPresence(id),700);
   };
   if(presenceHeartbeat)clearInterval(presenceHeartbeat);
-  presenceHeartbeat=setInterval(()=>broadcastPresence(),3000);
+  presenceHeartbeat=setInterval(()=>broadcastPresence(),1500);
   lobbyRoom.onPeerLeave=id=>{
     delete lobbyPeers[id]; pendingOutgoing.delete(id);
     if(pendingIncoming&&pendingIncoming.peerId===id)pendingIncoming=null;
@@ -1908,6 +1919,13 @@ function ensureLobby(){
 addEventListener('trystero-ready',()=>{ if(sel.net) ensureLobby(); });
 let lobbyUnavailable=false;
 addEventListener('trystero-failed',()=>{ lobbyUnavailable=true; renderLobbyList(); });
+function manualRefreshLobby(){
+  ensureLobby();
+  if(lobbyActions){ try{lobbyActions.presence.send(dispName());}catch(_){} }
+  renderLobbyList();
+  const btn=$('refreshLobbyBtn');
+  if(btn){ btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); }
+}
 function renderLobbyList(){
   const box=$('lobbyList'); if(!box)return;
   const ids=Object.keys(lobbyPeers);
@@ -2450,6 +2468,7 @@ function buildMenu(){
     $('chatPanel').hidden=!chatOpen;
     if(chatOpen){ chatUnread=0; updateChatBadge(); $('chatInputRace').focus(); }
   };
+  $('refreshLobbyBtn').onclick=()=>manualRefreshLobby();
   $('codeToggleBtn').onclick=()=>{
     const box=$('manualCodeBox');
     box.hidden=!box.hidden;
