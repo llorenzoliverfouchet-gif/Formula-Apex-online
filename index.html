@@ -1973,14 +1973,24 @@ addEventListener('trystero-failed',()=>{ lobbyUnavailable=true; renderLobbyList(
 const SUPABASE_URL='https://nucpmtinjnagukrctdli.supabase.co';
 const SUPABASE_KEY='sb_publishable_sxW7lp1urjZM77kU38MRFQ_YaXoPLKu';
 let sbClient=null, sbChannel=null, sbMyId=null;
-let sbUnavailable=false;
+let sbUnavailable=false, sbRetryTimer=null;
 function ensureServerLobby(){
   if(sbChannel||!window.supabase) return;
+  sbUnavailable=false; renderLobbyList();
+  clearTimeout(sbRetryTimer);
   try{
     sbClient=sbClient||window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
     sbMyId=sbMyId||(self.crypto&&crypto.randomUUID?crypto.randomUUID():'p'+Math.random().toString(36).slice(2));
     const ch=sbClient.channel('f1apex-server-lobby',{config:{broadcast:{self:false},presence:{key:sbMyId}}});
     sbChannel=ch;
+    function retryLater(){
+      if(sbChannel!==ch)return;
+      sbChannel=null;
+      try{ch.unsubscribe();}catch(_){}
+      if(sel.net&&sel.netMode==='server'){
+        sbRetryTimer=setTimeout(()=>{ if(!sbChannel)ensureServerLobby(); },4000);
+      }
+    }
     netTransport={
       sendChallenge:id=>ch.send({type:'broadcast',event:'chal',payload:{from:sbMyId,to:id,name:dispName()}}),
       sendAccept:id=>ch.send({type:'broadcast',event:'acc',payload:{from:sbMyId,to:id}}),
@@ -2029,10 +2039,10 @@ function ensureServerLobby(){
       handleRaceMsg(payload.from,payload.json);
     });
     ch.subscribe(status=>{
-      if(status==='SUBSCRIBED'){ try{ch.track({name:dispName()});}catch(_){} renderLobbyList(); }
-      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){ sbUnavailable=true; renderLobbyList(); }
+      if(status==='SUBSCRIBED'){ sbUnavailable=false; try{ch.track({name:dispName()});}catch(_){} renderLobbyList(); }
+      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){ sbUnavailable=true; retryLater(); renderLobbyList(); }
     });
-  }catch(_){ sbUnavailable=true; renderLobbyList(); }
+  }catch(_){ sbUnavailable=true; sbChannel=null; renderLobbyList(); }
 }
 addEventListener('supabase-ready',()=>{ if(sel.net&&sel.netMode==='server') ensureServerLobby(); });
 addEventListener('supabase-failed',()=>{ sbUnavailable=true; renderLobbyList(); });
@@ -2097,7 +2107,8 @@ function netStatus(t){$('netStatus').textContent=t;}
 const TURN_SERVERS=[
   {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
   {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-  {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+  {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turns:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
 ];
 const ICE_SERVERS=[{urls:'stun:stun.l.google.com:19302'},...TURN_SERVERS];
 function makePC(){
