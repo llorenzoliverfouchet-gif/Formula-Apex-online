@@ -17,6 +17,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Racing+Sans+One&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" onload="window.dispatchEvent(new CustomEvent('supabase-ready'))" onerror="window.dispatchEvent(new CustomEvent('supabase-failed'))"></script>
 <script type="importmap">
 {
   "imports": {
@@ -201,6 +202,8 @@ body.mp .mpHud{display:flex}
 body.mp #split{display:block}
 #duoHint{display:none;font-size:11px;color:var(--mut);margin-top:8px}
 #duoHint.show{display:block}
+#serverHint{display:none;font-size:11px;color:var(--mut);margin-top:8px}
+#serverHint.show{display:block}
 #netBox{--cut:14px;background:var(--panel);border:1px solid var(--line);padding:14px;margin-top:10px;
   clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut));
   backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5)}
@@ -357,7 +360,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge">v1.2 · 11/07/2026</div>
+  <div id="verBadge">v1.3 · 11/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -372,8 +375,10 @@ body.noTouch #kbHint{display:block}
       <button class="chip" id="soloChip">🏎&nbsp;SOLO</button>
       <button class="chip" id="duoChip">👥&nbsp;2 JOUEURS · ÉCRAN PARTAGÉ</button>
       <button class="chip" id="netChip">🌐&nbsp;EN LIGNE · DUEL</button>
+      <button class="chip" id="serverChip">🛰️&nbsp;EN LIGNE · SERVEUR</button>
     </div>
     </div>
+    <div id="serverHint">Passe par un serveur relais au lieu du direct — plus lent, mais marche même en 4G ou sur les réseaux les plus restrictifs. Pas de micro dans ce mode.</div>
     <div id="duoHint">Même clavier — Joueur 1 : ZQSD / WASD · Joueur 2 : flèches. Le joueur 2 reçoit automatiquement l'écurie suivante.</div>
     <div id="netBox" hidden>
       <label class="netLbl" style="margin-top:0">TON PSEUDO — affiché en hologramme au-dessus de ta voiture</label>
@@ -396,10 +401,10 @@ body.noTouch #kbHint{display:block}
         <div id="roomMembersList"></div>
       </div>
 
-      <button type="button" id="codeToggleBtn" class="codeToggle" aria-expanded="false">
+      <button type="button" id="codeToggleBtn" class="codeToggle p2pOnly" aria-expanded="false">
         <span>OU PAR CODE, SANS PASSER PAR LE SALON</span><i class="arrow">▸</i>
       </button>
-      <div id="manualCodeBox" class="manualCodeBox" hidden>
+      <div id="manualCodeBox" class="manualCodeBox p2pOnly" hidden>
         <div style="display:flex;gap:8px">
           <button class="obtn" id="hostBtn" style="margin-top:0">CRÉER UNE PARTIE</button>
           <button class="obtn" id="joinBtn" style="margin-top:0">REJOINDRE</button>
@@ -421,8 +426,8 @@ body.noTouch #kbHint{display:block}
           <input id="chatInputMenu" type="text" maxlength="200" placeholder="Écris un message…" autocomplete="off">
           <button id="chatSendMenu">➤</button>
         </div>
-        <button class="obtn" id="micBtnMenu" style="margin-top:8px">🎤 ACTIVER LE MICRO</button>
-        <p class="netHelp">Le micro fonctionne pour les parties lancées depuis le salon de joueurs en ligne (pas par code manuel).</p>
+        <button class="obtn p2pOnly" id="micBtnMenu" style="margin-top:8px">🎤 ACTIVER LE MICRO</button>
+        <p class="netHelp p2pOnly">Le micro fonctionne pour les parties lancées depuis le salon de joueurs en ligne (pas par code manuel).</p>
       </div>
     </div>
 
@@ -1245,7 +1250,7 @@ const isTouch=('ontouchstart' in window);
 const gfx={shadows:!isTouch, hq:true, bright:1};
 const DIFFS=[{n:'FACILE',mul:0.90},{n:'NORMAL',mul:0.97},{n:'DIFFICILE',mul:1.03},{n:'IMPOSSIBLE',mul:1.10}];
 const camPos=new THREE.Vector3(), camPos2=new THREE.Vector3(), camLook=new THREE.Vector3();
-const sel={track:0,team:0,laps:3,opp:9,diff:1,mp:false,net:false,ctrl:'arrows'};
+const sel={track:0,team:0,laps:3,opp:9,diff:1,mp:false,net:false,netMode:'p2p',ctrl:'arrows'};
 const input={gas:false,brk:false,left:false,right:false,axis:null};
 const input2={gas:false,brk:false,left:false,right:false,axis:null};
 
@@ -1803,12 +1808,16 @@ function addMate(peerId,name,team,isHost){
   else{ if(name)m.name=name; if(team!=null)m.team=team; if(isHost)m.isHost=true; }
   return m;
 }
+// Transport actif pour le salon (Trystero P2P ou relais Supabase) — abstrait
+// challenge/accept/decline/envoi de jeu pour que tout le reste (raceMates,
+// handleRaceMsg, l'UI du salon…) reste identique quel que soit le mode.
+let netTransport=null;
 function sendToMates(obj,targetPeerId){
   const json=JSON.stringify(obj);
   if(net.dc){ try{net.dc.send(json);}catch(_){} return; }
-  if(!lobbyActions)return;
+  if(!netTransport)return;
   const ids=targetPeerId?[targetPeerId]:raceMates.map(m=>m.peerId);
-  ids.forEach(id=>{ try{lobbyActions.game.send(json,{target:id});}catch(_){} });
+  ids.forEach(id=>{ try{netTransport.sendGame(json,id);}catch(_){} });
 }
 function handleRoomInfo(fromPeerId,m){
   addMate(fromPeerId, m.me&&m.me.name, m.me&&m.me.team, true);
@@ -1844,7 +1853,8 @@ function handleRaceMsg(peerId,raw){
   }
 }
 
-/* ---------- salon en ligne (Trystero — sans serveur, sans compte) ---------- */
+/* ---------- salon en ligne : deux transports possibles, même UI/logique de jeu
+   (Trystero P2P sans serveur, ou relais Supabase pour les réseaux restrictifs) ---------- */
 let lobbyRoom=null, lobbyActions=null, lobbyPeers={};
 let pendingOutgoing=new Set(), pendingIncoming=null;
 let presenceHeartbeat=null;
@@ -1858,6 +1868,38 @@ function startLobbyRace(iAmHost){
     :"Choisis ton écurie — l'hôte va lancer la course."));
   refreshMenu();
 }
+// Un pair a quitté le salon/la partie — commun aux deux transports.
+function handleMateLeftRace(id){
+  const mate=findMate(id); if(!mate)return;
+  const wasHost=mate.isHost;
+  raceMates=raceMates.filter(m=>m.peerId!==id);
+  stopMicStream(id);
+  if(state!=='menu'){
+    hudEls.camToast.textContent='⚠ '+(mate.name||'UN JOUEUR')+' DÉCONNECTÉ';
+    hudEls.camToast.hidden=false; toastT=3;
+  }
+  if(wasHost){
+    netStatus("⚠ L'hôte a quitté le salon.");
+    net.connected=false; raceMates=[]; stopMic();
+  }else if(raceMates.length===0){
+    net.connected=false; stopMic();
+  }
+  refreshMenu();
+}
+// Un défi vient d'être accepté par `fromId` — commun aux deux transports.
+function handleChallengeAccepted(fromId){
+  const wasEmpty=raceMates.length===0;
+  addMate(fromId, lobbyPeers[fromId], null, false);
+  if(wasEmpty) startLobbyRace(true);
+  sendToMates({t:'roomInfo', me:{name:dispName(),team:sel.team},
+    mates:raceMates.filter(m=>m.peerId!==fromId).map(m=>({peerId:m.peerId,name:m.name,team:m.team}))
+  }, fromId);
+  sendToMates({t:'team',team:sel.team,name:dispName()}, fromId);
+  raceMates.filter(m=>m.peerId!==fromId).forEach(m=>{
+    sendToMates({t:'roomJoin',peerId:fromId,name:lobbyPeers[fromId]||'PILOTE'}, m.peerId);
+  });
+  renderLobbyList(); refreshMenu();
+}
 function ensureLobby(){
   if(lobbyRoom||!window.Trystero) return;
   const {joinRoom}=window.Trystero;
@@ -1870,6 +1912,12 @@ function ensureLobby(){
   const decline=lobbyRoom.makeAction('dec');
   const game=lobbyRoom.makeAction('game');
   lobbyActions={presence,challenge,accept,decline,game};
+  netTransport={
+    sendChallenge:id=>challenge.send(dispName(),{target:id}),
+    sendAccept:id=>accept.send(null,{target:id}),
+    sendDecline:(id,reason)=>decline.send(reason||null,{target:id}),
+    sendGame:(json,id)=>game.send(json,{target:id}),
+  };
   function broadcastPresence(target){
     const opts=target?{target}:undefined;
     try{presence.send(dispName(),opts);}catch(_){}
@@ -1888,23 +1936,7 @@ function ensureLobby(){
   lobbyRoom.onPeerLeave=id=>{
     delete lobbyPeers[id]; pendingOutgoing.delete(id);
     if(pendingIncoming&&pendingIncoming.peerId===id)pendingIncoming=null;
-    const mate=findMate(id);
-    if(mate){
-      const wasHost=mate.isHost;
-      raceMates=raceMates.filter(m=>m.peerId!==id);
-      stopMicStream(id);
-      if(state!=='menu'){
-        hudEls.camToast.textContent='⚠ '+(mate.name||'UN JOUEUR')+' DÉCONNECTÉ';
-        hudEls.camToast.hidden=false; toastT=3;
-      }
-      if(wasHost){
-        netStatus("⚠ L'hôte a quitté le salon.");
-        net.connected=false; raceMates=[]; stopMic();
-      }else if(raceMates.length===0){
-        net.connected=false; stopMic();
-      }
-      refreshMenu();
-    }
+    handleMateLeftRace(id);
     renderLobbyList();
   };
   lobbyRoom.onPeerStream=(stream,id)=>{
@@ -1920,17 +1952,7 @@ function ensureLobby(){
   accept.onMessage=(_d,ctx)=>{
     if(!pendingOutgoing.has(ctx.peerId))return;
     pendingOutgoing.delete(ctx.peerId);
-    const wasEmpty=raceMates.length===0;
-    addMate(ctx.peerId, lobbyPeers[ctx.peerId], null, false);
-    if(wasEmpty) startLobbyRace(true);
-    sendToMates({t:'roomInfo', me:{name:dispName(),team:sel.team},
-      mates:raceMates.filter(m=>m.peerId!==ctx.peerId).map(m=>({peerId:m.peerId,name:m.name,team:m.team}))
-    }, ctx.peerId);
-    sendToMates({t:'team',team:sel.team,name:dispName()}, ctx.peerId);
-    raceMates.filter(m=>m.peerId!==ctx.peerId).forEach(m=>{
-      sendToMates({t:'roomJoin',peerId:ctx.peerId,name:lobbyPeers[ctx.peerId]||'PILOTE'}, m.peerId);
-    });
-    renderLobbyList(); refreshMenu();
+    handleChallengeAccepted(ctx.peerId);
   };
   decline.onMessage=(reason,ctx)=>{
     if(pendingOutgoing.has(ctx.peerId)){
@@ -1942,12 +1964,82 @@ function ensureLobby(){
   game.onMessage=(data,ctx)=>{ handleRaceMsg(ctx.peerId,data); };
   renderLobbyList();
 }
-addEventListener('trystero-ready',()=>{ if(sel.net) ensureLobby(); });
+addEventListener('trystero-ready',()=>{ if(sel.net&&sel.netMode==='p2p') ensureLobby(); });
 let lobbyUnavailable=false;
 addEventListener('trystero-failed',()=>{ lobbyUnavailable=true; renderLobbyList(); });
+
+/* ---------- salon "SERVEUR" (Supabase Realtime — pas de P2P, marche partout,
+   même sur les réseaux les plus restrictifs comme la 4G) ---------- */
+const SUPABASE_URL='https://nucpmtinjnagukrctdli.supabase.co';
+const SUPABASE_KEY='sb_publishable_sxW7lp1urjZM77kU38MRFQ_YaXoPLKu';
+let sbClient=null, sbChannel=null, sbMyId=null;
+let sbUnavailable=false;
+function ensureServerLobby(){
+  if(sbChannel||!window.supabase) return;
+  try{
+    sbClient=sbClient||window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    sbMyId=sbMyId||(self.crypto&&crypto.randomUUID?crypto.randomUUID():'p'+Math.random().toString(36).slice(2));
+    const ch=sbClient.channel('f1apex-server-lobby',{config:{broadcast:{self:false},presence:{key:sbMyId}}});
+    sbChannel=ch;
+    netTransport={
+      sendChallenge:id=>ch.send({type:'broadcast',event:'chal',payload:{from:sbMyId,to:id,name:dispName()}}),
+      sendAccept:id=>ch.send({type:'broadcast',event:'acc',payload:{from:sbMyId,to:id}}),
+      sendDecline:(id,reason)=>ch.send({type:'broadcast',event:'dec',payload:{from:sbMyId,to:id,reason:reason||null}}),
+      sendGame:(json,id)=>ch.send({type:'broadcast',event:'game',payload:{from:sbMyId,to:id,json}}),
+    };
+    ch.on('presence',{event:'sync'},()=>{
+      const st=ch.presenceState(); lobbyPeers={};
+      Object.keys(st).forEach(id=>{
+        if(id===sbMyId||!st[id][0])return;
+        lobbyPeers[id]=String(st[id][0].name||'PILOTE').slice(0,15);
+      });
+      renderLobbyList();
+    });
+    ch.on('presence',{event:'leave'},({key})=>{
+      delete lobbyPeers[key]; pendingOutgoing.delete(key);
+      if(pendingIncoming&&pendingIncoming.peerId===key)pendingIncoming=null;
+      handleMateLeftRace(key);
+      renderLobbyList();
+    });
+    ch.on('broadcast',{event:'chal'},({payload})=>{
+      if(!payload||payload.to!==sbMyId)return;
+      if((net.connected&&net.role==='guest')||state!=='menu'){
+        try{ch.send({type:'broadcast',event:'dec',payload:{from:sbMyId,to:payload.from,reason:'occupé'}});}catch(_){}
+        return;
+      }
+      pendingIncoming={peerId:payload.from,name:String(payload.name||'PILOTE').slice(0,15)};
+      renderLobbyList();
+    });
+    ch.on('broadcast',{event:'acc'},({payload})=>{
+      if(!payload||payload.to!==sbMyId||!pendingOutgoing.has(payload.from))return;
+      pendingOutgoing.delete(payload.from);
+      handleChallengeAccepted(payload.from);
+    });
+    ch.on('broadcast',{event:'dec'},({payload})=>{
+      if(!payload||payload.to!==sbMyId)return;
+      if(pendingOutgoing.has(payload.from)){
+        pendingOutgoing.delete(payload.from);
+        netStatus((lobbyPeers[payload.from]||'Le joueur')+' a refusé'+(payload.reason?(' ('+payload.reason+')'):'')+'.');
+        renderLobbyList();
+      }
+    });
+    ch.on('broadcast',{event:'game'},({payload})=>{
+      if(!payload||payload.from===sbMyId)return;
+      if(payload.to&&payload.to!==sbMyId)return;
+      handleRaceMsg(payload.from,payload.json);
+    });
+    ch.subscribe(status=>{
+      if(status==='SUBSCRIBED'){ try{ch.track({name:dispName()});}catch(_){} renderLobbyList(); }
+      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){ sbUnavailable=true; renderLobbyList(); }
+    });
+  }catch(_){ sbUnavailable=true; renderLobbyList(); }
+}
+addEventListener('supabase-ready',()=>{ if(sel.net&&sel.netMode==='server') ensureServerLobby(); });
+addEventListener('supabase-failed',()=>{ sbUnavailable=true; renderLobbyList(); });
+
 function manualRefreshLobby(){
-  ensureLobby();
-  if(lobbyActions){ try{lobbyActions.presence.send(dispName());}catch(_){} }
+  if(sel.netMode==='server'){ ensureServerLobby(); if(sbChannel){ try{sbChannel.track({name:dispName()});}catch(_){} } }
+  else{ ensureLobby(); if(lobbyActions){ try{lobbyActions.presence.send(dispName());}catch(_){} } }
   renderLobbyList();
   const btn=$('refreshLobbyBtn');
   if(btn){ btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); }
@@ -1955,8 +2047,11 @@ function manualRefreshLobby(){
 function renderLobbyList(){
   const box=$('lobbyList'); if(!box)return;
   const ids=Object.keys(lobbyPeers);
-  if(lobbyUnavailable){ box.innerHTML='<div class="lobbyEmpty">Salon indisponible sur ce réseau — utilise un code ci-dessous.</div>'; }
-  else if(!window.Trystero){ box.innerHTML='<div class="lobbyEmpty">Chargement du salon…</div>'; }
+  const isServer=sel.netMode==='server';
+  const unavailable=isServer?sbUnavailable:lobbyUnavailable;
+  const loading=isServer?!window.supabase:!window.Trystero;
+  if(unavailable){ box.innerHTML='<div class="lobbyEmpty">Salon indisponible sur ce réseau — utilise un code ci-dessous.</div>'; }
+  else if(loading){ box.innerHTML='<div class="lobbyEmpty">Chargement du salon…</div>'; }
   else if(!ids.length){ box.innerHTML='<div class="lobbyEmpty">Aucun autre joueur en ligne pour l\'instant…</div>'; }
   else{
     box.innerHTML='';
@@ -1975,7 +2070,7 @@ function renderLobbyList(){
       btn.onclick=()=>{
         if(btn.disabled)return;
         pendingOutgoing.add(id);
-        try{lobbyActions.challenge.send(dispName(),{target:id});}catch(_){}
+        try{netTransport.sendChallenge(id);}catch(_){}
         netStatus('Invitation envoyée à '+lobbyPeers[id]+'…');
         renderLobbyList();
       };
@@ -2185,7 +2280,10 @@ function sendTeam(){
 function netTick(){
   if(!net.connected||!player)return;
   const now=performance.now();
-  if(now-net.lastTx<50)return;
+  // le relais Supabase facture au message : on envoie moins souvent que le
+  // P2P direct (illimité) pour rester large sous le quota gratuit.
+  const minGap=(online&&sel.netMode==='server')?150:50;
+  if(now-net.lastTx<minGap)return;
   net.lastTx=now;
   const c=player;
   sendToMates({t:'s',
@@ -2495,18 +2593,24 @@ function buildMenu(){
   };
   $('netChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.mp=false;sel.net=true;refreshMenu();
+    sel.mp=false;sel.net=true;sel.netMode='p2p';refreshMenu();
     ensureLobby();
+  };
+  $('serverChip').onclick=()=>{
+    if(online&&net.role==='guest'&&net.connected)return;
+    sel.mp=false;sel.net=true;sel.netMode='server';refreshMenu();
+    ensureServerLobby();
   };
   $('unameInput').oninput=e=>{
     myName=e.target.value.slice(0,15);
     if(online&&net.connected){ sendToMates({t:'team',team:sel.team,name:dispName()}); }
-    if(lobbyActions){ try{lobbyActions.presence.send(dispName());}catch(_){} }
+    if(sel.netMode==='p2p'&&lobbyActions){ try{lobbyActions.presence.send(dispName());}catch(_){} }
+    else if(sel.netMode==='server'&&sbChannel){ try{sbChannel.track({name:dispName()});}catch(_){} }
   };
   $('acceptChallengeBtn').onclick=()=>{
     if(!pendingIncoming)return;
     const {peerId,name}=pendingIncoming;
-    try{lobbyActions.accept.send(null,{target:peerId});}catch(_){}
+    try{netTransport.sendAccept(peerId);}catch(_){}
     pendingIncoming=null;
     addMate(peerId,name,null,true);
     startLobbyRace(false);
@@ -2514,7 +2618,7 @@ function buildMenu(){
   };
   $('declineChallengeBtn').onclick=()=>{
     if(!pendingIncoming)return;
-    try{lobbyActions.decline.send(null,{target:pendingIncoming.peerId});}catch(_){}
+    try{netTransport.sendDecline(pendingIncoming.peerId);}catch(_){}
     pendingIncoming=null; renderLobbyList();
   };
   wireChatInput('chatInputMenu','chatSendMenu');
@@ -2588,10 +2692,18 @@ function refreshMenu(){
   $('gfxName').textContent=(gfx.hq?'HD':'RAPIDE')+(gfx.shadows?' + OMBRES':'');
   $('soloChip').classList.toggle('sel',!sel.mp&&!sel.net);
   $('duoChip').classList.toggle('sel',sel.mp);
-  $('netChip').classList.toggle('sel',sel.net);
-  $('modeName').textContent=sel.net?'EN LIGNE':(sel.mp?'2 JOUEURS':'SOLO');
+  $('netChip').classList.toggle('sel',sel.net&&sel.netMode==='p2p');
+  $('serverChip').classList.toggle('sel',sel.net&&sel.netMode==='server');
+  $('modeName').textContent=sel.net?(sel.netMode==='server'?'EN LIGNE · SERVEUR':'EN LIGNE'):(sel.mp?'2 JOUEURS':'SOLO');
   $('duoHint').classList.toggle('show',sel.mp);
+  $('serverHint').classList.toggle('show',sel.net&&sel.netMode==='server');
   $('netBox').hidden=!sel.net;
+  const inServerMode=sel.net&&sel.netMode==='server';
+  document.querySelectorAll('.p2pOnly').forEach(el=>{
+    // manualCodeBox a son propre état plié/déplié (flèche) — on ne force que la fermeture.
+    if(el.id==='manualCodeBox'){ if(inServerMode)el.hidden=true; }
+    else{ el.hidden=inServerMode; }
+  });
   $('startBtn').querySelector('span').textContent=
     (sel.net&&net.role==='guest')?"EN ATTENTE DE L'HÔTE…":'LANCER LA COURSE';
   if(sel.mp&&sel.opp>8){sel.opp=8;$('oppV').textContent=8;}
