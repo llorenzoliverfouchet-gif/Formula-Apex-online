@@ -360,7 +360,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge">v1.3 · 11/07/2026</div>
+  <div id="verBadge">v1.4 · 11/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -2530,7 +2530,24 @@ function trackLenKm(def){
   const cps=def.pts.map(p=>new THREE.Vector3(p[0]*def.scale,0,p[1]*def.scale));
   return (new THREE.CatmullRomCurve3(cps,true,'catmullrom',0.55).getLength()/1000).toFixed(1);
 }
+// Mémorise le pseudo + le mode en ligne choisi pour survivre à un rechargement
+// de page (F5) sans que ça ressemble à une déconnexion silencieuse.
+function saveNetPrefs(){
+  try{ localStorage.setItem('f1apexPrefs', JSON.stringify({name:myName, net:sel.net, netMode:sel.netMode, mp:sel.mp})); }catch(_){}
+}
+function loadNetPrefs(){
+  try{
+    const p=JSON.parse(localStorage.getItem('f1apexPrefs')||'null');
+    if(!p)return;
+    if(typeof p.name==='string')myName=p.name.slice(0,15);
+    if(p.netMode==='p2p'||p.netMode==='server')sel.netMode=p.netMode;
+    if(typeof p.net==='boolean')sel.net=p.net;
+    if(typeof p.mp==='boolean'&&!sel.net)sel.mp=p.mp;
+  }catch(_){}
+}
 function buildMenu(){
+  loadNetPrefs();
+  $('unameInput').value=myName;
   TRACKS.forEach((tdef,i)=>{
     const b=document.createElement('button');
     b.className='tcard';
@@ -2585,24 +2602,25 @@ function buildMenu(){
   $('hqChip').onclick=()=>{gfx.hq=!gfx.hq;refreshMenu();};
   $('soloChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.mp=false;sel.net=false;refreshMenu();
+    sel.mp=false;sel.net=false;refreshMenu();saveNetPrefs();
   };
   $('duoChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.mp=true;sel.net=false;refreshMenu();
+    sel.mp=true;sel.net=false;refreshMenu();saveNetPrefs();
   };
   $('netChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.mp=false;sel.net=true;sel.netMode='p2p';refreshMenu();
+    sel.mp=false;sel.net=true;sel.netMode='p2p';refreshMenu();saveNetPrefs();
     ensureLobby();
   };
   $('serverChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.mp=false;sel.net=true;sel.netMode='server';refreshMenu();
+    sel.mp=false;sel.net=true;sel.netMode='server';refreshMenu();saveNetPrefs();
     ensureServerLobby();
   };
   $('unameInput').oninput=e=>{
     myName=e.target.value.slice(0,15);
+    saveNetPrefs();
     if(online&&net.connected){ sendToMates({t:'team',team:sel.team,name:dispName()}); }
     if(sel.netMode==='p2p'&&lobbyActions){ try{lobbyActions.presence.send(dispName());}catch(_){} }
     else if(sel.netMode==='server'&&sbChannel){ try{sbChannel.track({name:dispName()});}catch(_){} }
@@ -2668,6 +2686,13 @@ function buildMenu(){
     return true;
   };
   refreshMenu();
+  // Mode en ligne restauré après un rechargement de page : on se reconnecte
+  // tout de suite si le transport est déjà chargé (sinon les écouteurs
+  // 'trystero-ready'/'supabase-ready' s'en chargeront dès qu'il sera prêt).
+  if(sel.net){
+    if(sel.netMode==='p2p'&&window.Trystero) ensureLobby();
+    else if(sel.netMode==='server'&&window.supabase) ensureServerLobby();
+  }
 }
 function refreshMenu(){
   const acc=TEAMS[sel.team].css;
