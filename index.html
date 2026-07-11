@@ -34,14 +34,13 @@
 }
 </script>
 <script type="module">
-  // Nostr: relais temps réel (push), beaucoup plus rapide pour la découverte de pairs
-  // que le sondage périodique des trackers BitTorrent. Repli automatique sur le
-  // réseau BitTorrent si le chargement des modules Nostr échoue.
-  import('@trystero-p2p/nostr').then(({joinRoom, selfId}) => {
+  // BitTorrent : stratégie de signalisation la plus éprouvée sur ce projet.
+  // Repli sur Nostr si le chargement du module BitTorrent échoue.
+  import('@trystero-p2p/torrent').then(({joinRoom, selfId}) => {
     window.Trystero = { joinRoom, selfId };
     window.dispatchEvent(new CustomEvent('trystero-ready'));
   }).catch(() => {
-    import('@trystero-p2p/torrent').then(({joinRoom, selfId}) => {
+    import('@trystero-p2p/nostr').then(({joinRoom, selfId}) => {
       window.Trystero = { joinRoom, selfId };
       window.dispatchEvent(new CustomEvent('trystero-ready'));
     }).catch(() => {
@@ -1856,7 +1855,9 @@ function startLobbyRace(iAmHost){
 function ensureLobby(){
   if(lobbyRoom||!window.Trystero) return;
   const {joinRoom}=window.Trystero;
-  lobbyRoom=joinRoom({appId:'f1-apex-online-lobby-v1'},'f1apex-lobby');
+  lobbyRoom=joinRoom({appId:'f1-apex-online-lobby-v1',turnConfig:TURN_SERVERS},'f1apex-lobby',{
+    onJoinError:()=>{ netStatus('❌ Connexion impossible avec ce joueur (réseau trop restrictif). Réessaie.'); }
+  });
   const presence=lobbyRoom.makeAction('presence');
   const challenge=lobbyRoom.makeAction('chal');
   const accept=lobbyRoom.makeAction('acc');
@@ -1989,18 +1990,40 @@ function renderRoomMembers(){
   $('roomMembersList').innerHTML=meLine+mateLines;
 }
 function netStatus(t){$('netStatus').textContent=t;}
+// Relais TURN publics (Open Relay / metered.ca) — certains réseaux (4G, wifi
+// d'entreprise/école, NAT symétrique) bloquent la connexion P2P directe même
+// avec un serveur STUN ; le TURN sert alors de relais de secours.
+const TURN_SERVERS=[
+  {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+];
+const ICE_SERVERS=[{urls:'stun:stun.l.google.com:19302'},...TURN_SERVERS];
 function makePC(){
-  const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+  const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
+  let codeEmitted=false;
+  function emitCode(){
+    if(codeEmitted||!pc.localDescription)return;
+    codeEmitted=true;
+    $('myCode').value=btoa(JSON.stringify(pc.localDescription));
+    netStatus(net.role==='host'
+      ?'Code créé ! Envoie-le à ton ami·e, puis colle sa RÉPONSE ci-dessous et VALIDER.'
+      :"Code-réponse créé ! Envoie-le à l'hôte, la connexion suivra.");
+  }
   pc.onicegatheringstatechange=()=>{
-    if(pc.iceGatheringState==='complete'&&pc.localDescription){
-      $('myCode').value=btoa(JSON.stringify(pc.localDescription));
-      netStatus(net.role==='host'
-        ?'Code créé ! Envoie-le à ton ami·e, puis colle sa RÉPONSE ci-dessous et VALIDER.'
-        :"Code-réponse créé ! Envoie-le à l'hôte, la connexion suivra.");
-    }
+    if(pc.iceGatheringState==='complete')emitCode();
   };
+  // Filet de sécurité : si la collecte des candidats ICE traîne (réseau restrictif),
+  // on émet quand même le code après un délai plutôt que de rester bloqué sur
+  // "Création du code…" indéfiniment.
+  setTimeout(()=>{
+    emitCode();
+    if(!pc.localDescription)netStatus("Impossible de créer le code — vérifie ta connexion réseau et réessaie.");
+  },4000);
   pc.onconnectionstatechange=()=>{
-    if(pc.connectionState==='failed'||pc.connectionState==='disconnected'){
+    if(pc.connectionState==='failed'){
+      net.connected=false; netStatus('❌ Connexion impossible avec cet ami·e (réseau trop restrictif). Réessaie, ou vérifie que le code a bien été copié en entier.');
+    }else if(pc.connectionState==='disconnected'){
       net.connected=false; netStatus('Connexion perdue.');
     }
   };
