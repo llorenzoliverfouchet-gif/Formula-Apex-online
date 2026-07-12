@@ -417,7 +417,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v1.6 · 11/07/2026</div>
+  <div id="verBadge" title="Version">v1.7 · 12/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -1921,7 +1921,12 @@ let raceMates=[];
 function findMate(id){ return raceMates.find(m=>m.peerId===id); }
 function addMate(peerId,name,team,isHost){
   let m=findMate(peerId);
-  if(!m){ m={peerId,name:(name||'PILOTE'),team:(team!=null?team:null),isHost:!!isHost,rs:null}; raceMates.push(m); }
+  if(!m){
+    m={peerId,name:(name||'PILOTE'),team:(team!=null?team:null),isHost:!!isHost,rs:null}; raceMates.push(m);
+    // le micro n'était diffusé qu'aux coéquipiers déjà présents au moment de l'activation :
+    // un nouvel arrivant doit recevoir le flux explicitement, sinon il n'entend jamais rien.
+    if(lobbyRoom&&micStream){ try{lobbyRoom.addStream(micStream,{target:peerId});}catch(_){} }
+  }
   else{ if(name)m.name=name; if(team!=null)m.team=team; if(isHost)m.isHost=true; }
   return m;
 }
@@ -2913,7 +2918,7 @@ function startRace(){
   document.body.classList.toggle('online',online);
   document.body.classList.toggle('cine',cine);
   $('cinePrevBtn').hidden=!cine; $('cineNextBtn').hidden=!cine;
-  $('micBtn').hidden=!online; $('chatToggleBtn').hidden=!online;
+  $('micBtn').hidden=!(online&&sel.netMode==='p2p'); $('chatToggleBtn').hidden=!online;
   if(!online){ $('chatPanel').hidden=true; chatOpen=false; }
   setAspect();
   $('menu').hidden=true; $('game').hidden=false;
