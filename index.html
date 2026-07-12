@@ -427,7 +427,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v2.1 · 12/07/2026</div>
+  <div id="verBadge" title="Version">v2.2 · 12/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -1566,7 +1566,7 @@ function spawnCars(){
         skill:clamp((base[s]||0.89)*mul,0.6,1.05),
         ck:clamp((ckb[s]||0.8)*AIC,0.55,0.97),
         pph:rand(0,6.28), pfr:rand(0.5,1.2),
-        dbl:0, dblCd:rand(0,3), dblSide:1,
+        dbl:0, dblCd:rand(0,3), dblSide:1, pitSlot:s,
         stuckT:0, recovering:false, progIdx:idx,
         lapStart:0, lastLap:null, best:null, finished:false, finishTime:null
       };
@@ -1611,7 +1611,7 @@ function spawnCars(){
       skill:isP?1:clamp((base[s]||0.89)*mul,0.6,1.05),
       ck:isP?1:clamp((ckb[s]||0.8)*AIC,0.55,0.97),
       pph:rand(0,6.28), pfr:rand(0.5,1.2),
-      dbl:0, dblCd:rand(0,3), dblSide:1,
+      dbl:0, dblCd:rand(0,3), dblSide:1, pitSlot:s,
       stuckT:0, recovering:false, progIdx:idx,
       lapStart:0, lastLap:null, best:null, finished:false, finishTime:null
     };
@@ -1803,16 +1803,20 @@ function physAI(car,dt){
 
   if(car.pitting){
     if(dIdxPit<110) target=Math.min(target,7+dIdxPit*0.3);
-    if(car.idx>=PIT_A&&car.idx<=PIT_B&&car.lat>3.0){
+    // chaque voiture vise son propre emplacement, réparti le long de la voie des stands,
+    // au lieu que toutes convergent sur le même point (ce qui les faisait s'arrêter les
+    // unes derrière les autres, trop court pour déclencher le ravitaillement).
+    const stopIdx=PIT_A+8+((car.pitSlot||0)%8)*5;
+    if(car.idx>=stopIdx&&car.idx<=PIT_B&&car.lat>3.0){
       target=0;
       if(car.speed<0.7){
         car.pitT+=dt;
         if(car.pitT>=3){car.fuel=1;car.pitting=false;car.pitT=0;}
       }
     }
-    // ne pas foncer dans une voiture déjà ralentie/arrêtée devant, dans la voie des stands
-    // (sans ça les IA qui pitent en même temps se rentrent dedans en approche/à l'arrêt)
-    if(ahead&&aAlong<12&&Math.abs(aSide)<3.5){
+    // sécurité anti-collision minimale : ne freine que si vraiment collée à une voiture
+    // juste devant (chaque voiture ayant son propre emplacement, ça reste rare)
+    if(ahead&&aAlong<7&&Math.abs(aSide)<3.2){
       target=Math.min(target,Math.max(ahead.speed-1,0));
     }
   }else{
