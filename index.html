@@ -419,7 +419,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v1.9 · 12/07/2026</div>
+  <div id="verBadge" title="Version">v2.0 · 12/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -1563,7 +1563,10 @@ function spawnCars(){
   const team2i=(sel.team+1)%TEAMS.length;
   const excl=mp?[sel.team,team2i]:[sel.team];
   const slots=sel.opp+humans;
-  const others=TEAMS.filter((_,i)=>!excl.includes(i)).slice(0,sel.opp);
+  // jusqu'à 25 voitures au total : au-delà des 8/9 écuries disponibles, on
+  // reboucle dessus (numérotées) plutôt que de plafonner silencieusement.
+  const avail=TEAMS.filter((_,i)=>!excl.includes(i));
+  const others=Array.from({length:sel.opp},(_,i)=>avail[i%avail.length]);
   const base=[1.03,1.02,1.01,0.995,0.98,0.968,0.955,0.94,0.925];
   const ckb=[0.99,0.965,0.94,0.92,0.9,0.88,0.86,0.84,0.82];
   const mul=DIFFS[sel.diff].mul;
@@ -1571,13 +1574,14 @@ function spawnCars(){
     const isP=(s>=slots-humans);
     const isP1=(s===slots-1);
     const team=isP?(isP1?TEAMS[sel.team]:TEAMS[team2i]):others[s];
+    const repeatN=isP?0:Math.floor(s/avail.length);
     const idx=(N-10-s*7+N)%N;
     const lane=(s%2?2.7:-2.7);
     const p=td.p[idx],n=td.n[idx],t=td.t[idx];
     const cm=makeCar(team);
     const car={
       team, isPlayer:isP,
-      name:isP?(mp?(isP1?'JOUEUR 1':'JOUEUR 2'):'VOUS'):team.driver,
+      name:isP?(mp?(isP1?'JOUEUR 1':'JOUEUR 2'):'VOUS'):(team.driver+(repeatN>0?' '+(repeatN+1):'')),
       inp:isP?(isP1?input:input2):null,
       fuel:1, tank:team.tank||120, pitT:0, pitting:false,
       mesh:cm.g, hull:cm.hull, spin:cm.spin, steerG:cm.steer,
@@ -2017,6 +2021,14 @@ function initAudio(){
     o1.start(); o2.start();
     eng={o1,o2,g};
   }catch(e){}
+}
+function stopEngineSound(){
+  // updateAudio() n'est plus appelée dès que state passe à 'menu' ou 'pause' (la
+  // boucle de jeu s'arrête net) : sans ça, le bruit moteur restait bloqué au
+  // volume qu'il avait juste avant, indéfiniment.
+  if(!eng)return;
+  eng.g.gain.cancelScheduledValues(AC.currentTime);
+  eng.g.gain.setTargetAtTime(0,AC.currentTime,0.05);
 }
 function updateAudio(){
   if(!eng)return;
@@ -2746,6 +2758,7 @@ function togglePause(){
     state=prevState; hudEls.pause.hidden=true; last=performance.now();
   }else if(state==='race'||state==='count'||state==='finish'){
     prevState=state; state='pause'; hudEls.pause.hidden=false;
+    stopEngineSound();
     const guestOnline=online&&net.role==='guest';
     $('restartBtn').style.display=guestOnline?'none':'';
   }
@@ -2768,6 +2781,7 @@ function quitToMenu(fromNet){
     sendToMates({t:'menu'});
   }
   state='menu';
+  stopEngineSound();
   $('game').hidden=true; $('menu').hidden=false;
   disposeWorld();
   refreshMenu();
@@ -2852,7 +2866,7 @@ function buildMenu(){
   };
   $('oppP').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
-    sel.opp=Math.min(sel.mp?8:9,sel.opp+1);refreshMenu();
+    sel.opp=Math.min(sel.mp?23:24,sel.opp+1);refreshMenu();
   };
   DIFFS.forEach((d,i)=>{
     const b=document.createElement('button');
@@ -3053,7 +3067,7 @@ function refreshMenu(){
   });
   $('startBtn').querySelector('span').textContent=
     (sel.net&&net.role==='guest')?"EN ATTENTE DE L'HÔTE…":(sel.cine?'LANCER LA CINÉMATIQUE':'LANCER LA COURSE');
-  if(sel.mp&&sel.opp>8){sel.opp=8;$('oppV').textContent=8;}
+  if(sel.mp&&sel.opp>23){sel.opp=23;$('oppV').textContent=23;}
   const guestLocked=sel.net&&net.role==='guest'&&net.connected;
   ['modeBlk','trackBlk','stepBlk','diffBlk','weatherBlk','todBlk'].forEach(id=>$(id).classList.toggle('netLocked',guestLocked));
   $('netLockNote').classList.toggle('show',guestLocked);
@@ -3073,7 +3087,7 @@ function startRace(){
   pendingWeather=null;
   weatherGrip=WEATHER_DEFS[weather].grip;
   timeOfDay=sel.tod;
-  if(mp&&sel.opp>8)sel.opp=8;
+  if(mp&&sel.opp>23)sel.opp=23;
   document.body.classList.toggle('mp',mp);
   document.body.classList.toggle('online',online);
   document.body.classList.toggle('cine',cine);
