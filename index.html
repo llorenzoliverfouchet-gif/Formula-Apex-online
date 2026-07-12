@@ -419,7 +419,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v1.8 · 12/07/2026</div>
+  <div id="verBadge" title="Version">v1.9 · 12/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -1527,8 +1527,8 @@ function spawnCars(){
   if(cine){
     // mode "cinématique" : grille complète, uniquement des IA, aucune voiture jouable
     const mul=DIFFS[sel.diff].mul;
-    const base=[1.0,0.99,0.98,0.965,0.95,0.94,0.928,0.915,0.9,0.885];
-    const ckb=[0.97,0.945,0.92,0.9,0.88,0.86,0.84,0.82,0.8,0.78];
+    const base=[1.03,1.02,1.01,0.995,0.98,0.968,0.955,0.94,0.925,0.91];
+    const ckb=[0.99,0.965,0.94,0.92,0.9,0.88,0.86,0.84,0.82,0.8];
     TEAMS.forEach((team,s)=>{
       const idx=(N-10-s*7+N)%N;
       const lane=(s%2?2.7:-2.7);
@@ -1564,8 +1564,8 @@ function spawnCars(){
   const excl=mp?[sel.team,team2i]:[sel.team];
   const slots=sel.opp+humans;
   const others=TEAMS.filter((_,i)=>!excl.includes(i)).slice(0,sel.opp);
-  const base=[1.0,0.99,0.98,0.965,0.95,0.94,0.928,0.915,0.9];
-  const ckb=[0.97,0.945,0.92,0.9,0.88,0.86,0.84,0.82,0.8];
+  const base=[1.03,1.02,1.01,0.995,0.98,0.968,0.955,0.94,0.925];
+  const ckb=[0.99,0.965,0.94,0.92,0.9,0.88,0.86,0.84,0.82];
   const mul=DIFFS[sel.diff].mul;
   for(let s=0;s<slots;s++){
     const isP=(s>=slots-humans);
@@ -1689,7 +1689,7 @@ function physAI(car,dt){
     car.liftT=0;car.liftCd=rand(3,9);}
 
   const pace=1+0.02*Math.sin(performance.now()*0.001*car.pfr+car.pph);
-  const topV=TOP*car.skill*pace*(0.9+0.1*weatherGrip);
+  const topV=TOP*car.skill*pace*(0.95+0.05*weatherGrip);
 
   if(!car.pitting&&!car.finished&&car.fuel<0.22) car.pitting=true;
 
@@ -1764,13 +1764,14 @@ function physAI(car,dt){
 
   // vitesse cible : anticipation de freinage réaliste sur les virages à venir
   // (l'IA tient compte de l'adhérence météo : moins de grip → virages négociés
-  // plus lentement et freinage anticipé plus tôt, exactement comme un vrai pilote)
+  // plus lentement et freinage anticipé plus tôt, exactement comme un vrai pilote —
+  // mais sans excès : elle doit rester une vraie menace même sous la pluie/la neige)
   let target=topV;
-  const decel=44*(0.6+0.4*weatherGrip);
+  const decel=44*(0.78+0.22*weatherGrip);
   const maxLook=Math.ceil(((car.speed+10)*(car.speed+10))/(2*decel)/td.ds)+3;
   for(let k=0;k<=maxLook;k+=2){
     const j=(car.idx+k)%N;
-    const vc=cornerV(td.c[j],car.ck*weatherGrip);
+    const vc=cornerV(td.c[j],car.ck*(0.55+0.45*weatherGrip));
     if(vc>=topV)continue;
     const allow=Math.sqrt(vc*vc+2*decel*k*td.ds)*0.94; // petite marge de sécurité
     if(allow<target)target=allow;
@@ -1801,7 +1802,7 @@ function physAI(car,dt){
   if(car.fuel<=0) target=Math.min(target,14);
   target=Math.max(target,0);
 
-  const accelRate=(car.ovT>0?38:30)*(0.65+0.35*weatherGrip);
+  const accelRate=(car.ovT>0?38:30)*(0.82+0.18*weatherGrip);
   if(car.speed<target-0.5) car.speed+=accelRate*(1-car.speed/Math.max(topV,1))*dt;
   else car.speed=Math.max(car.speed-decel*dt,target);
   car.thr=car.speed<target?1:0;
