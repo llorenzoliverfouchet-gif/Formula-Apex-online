@@ -427,7 +427,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v2.2 · 12/07/2026</div>
+  <div id="verBadge" title="Version">v2.3 · 13/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -647,7 +647,7 @@ body.noTouch #kbHint{display:block}
 <script id="game-js">
 'use strict';
 /* ================= DONNÉES ================= */
-const N=900, ROAD=7, BARR=8.2, WALLOFF=9.4, TOP=80;
+const N=900, ROAD=7, BARR=8.2, WALLOFF=9.4, TOP=80, CHEAT_TOP=139; // 139 m/s ≈ 500 km/h, réservé au Multivan secret
 
 const TEAMS=[
  {name:'Ferrari',         driver:'C. Leclerc',    c:0xe8002d, a:0xfff200, css:'#e8002d', tank:115},
@@ -660,7 +660,12 @@ const TEAMS=[
  {name:'Racing Bulls',    driver:'I. Hadjar',     c:0xdfe6f2, a:0x2e4bc6, css:'#8fa8e8', tank:117},
  {name:'Haas',            driver:'O. Bearman',    c:0xb6babd, a:0xd81f1f, css:'#b6babd', tank:131},
  {name:'Stake Sauber',    driver:'N. Hülkenberg', c:0x36e252, a:0x101216, css:'#36e252', tank:135},
+ // ---- écuries secrètes (jamais assignées aux IA — cf. AI_TEAMS) ----
+ {name:'Volkswagen', driver:'H. Käfer',    c:0x0f3d91, a:0xffffff, css:'#0f3d91', tank:120, hidden:true},
+ {name:'Multivan',   driver:'TONTON RENÉ', c:0x5c3a24, a:0xd8c9a3, css:'#8a5a35', tank:9999, hidden:true, cheat:true, van:true},
 ];
+// écuries pouvant être pilotées par une IA (les secrètes ci-dessus en sont exclues)
+const AI_TEAMS=TEAMS.filter(t=>!t.hidden);
 
 const TRACKS=[
  {name:'Monaco', sub:'Monte-Carlo : rues étroites, port scintillant', scale:1.0,
@@ -1355,6 +1360,54 @@ function makeCar(team){
   return {g,hull,spin,steer};
 }
 
+// ---- le Multivan (écurie secrète "cheatée") : carrosserie de van, pas de monoplace ----
+function makeVanCar(team){
+  const g=new THREE.Group(), hull=new THREE.Group(); g.add(hull);
+  const paint=c=>gfx.hq?new THREE.MeshStandardMaterial({color:c,metalness:0.35,roughness:0.42,
+    envMap:worldEnv,envMapIntensity:0.6}):ML(c);
+  const body=paint(team.c), dark=ML(0x14161a), grey=ML(0x6a6e76),
+    glass=ML(0x1c2430), chrome=ML(0xd8dde3);
+  const B=(w,h,d,mat,x,y,z,parent)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+    m.position.set(x,y,z);(parent||hull).add(m);return m;};
+  B(1.94,1.28,4.3,body,0,1.02,-0.05);            // caisse haute et carrée, comme un vrai van
+  B(1.94,0.24,0.9,dark,0,0.42,1.85);             // pare-choc avant
+  B(1.94,0.24,0.9,dark,0,0.42,-2.15);            // pare-choc arrière
+  B(1.86,0.75,0.62,glass,0,1.72,1.35);           // pare-brise
+  B(1.98,0.42,3.3,glass,0,1.5,-0.15);            // bande de vitres latérales
+  B(1.5,0.5,0.08,chrome,0,0.98,2.16);            // calandre chromée
+  const badge=new THREE.Mesh(new THREE.CircleGeometry(0.22,16),ML(0xf4f4f4));
+  badge.position.set(0,0.98,2.21); hull.add(badge);
+  const badgeRing=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.035,8,16),chrome);
+  badgeRing.position.set(0,0.98,2.2); hull.add(badgeRing);
+  [-0.78,0.78].forEach(x=>{
+    const hd=new THREE.Mesh(new THREE.SphereGeometry(0.15,10,8),ML(0xfff6d8));
+    hd.position.set(x,0.86,2.15); hull.add(hd);
+  });
+  [-1.0,1.0].forEach(x=>B(0.1,0.16,0.28,dark,x,1.35,1.35));  // rétroviseurs
+  B(0.03,1.0,0.02,dark,0.98,1.0,0.1);            // ligne de porte coulissante
+  const wg=new THREE.CylinderGeometry(0.5,0.5,0.34,14); wg.rotateZ(Math.PI/2);
+  const hg=new THREE.CylinderGeometry(0.24,0.24,0.36,10); hg.rotateZ(Math.PI/2);
+  const tyre=ML(0x1b1b1f);
+  const spin=[],steer=[];
+  const mkWheel=(x,z,front)=>{
+    const w=new THREE.Mesh(wg,tyre); w.add(new THREE.Mesh(hg,grey));
+    spin.push(w);
+    if(front){ const sg=new THREE.Group(); sg.position.set(x,0.5,z);
+      sg.add(w); hull.add(sg); steer.push(sg); }
+    else { w.position.set(x,0.5,z); hull.add(w); }
+  };
+  mkWheel(-1.0,1.55,true); mkWheel(1.0,1.55,true);
+  mkWheel(-1.0,-1.55,false); mkWheel(1.0,-1.55,false);
+  g.traverse(m=>{if(m.isMesh)m.castShadow=true;});
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(1,14),
+    new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.35,depthWrite:false}));
+  shadow.geometry.rotateX(-Math.PI/2);
+  shadow.scale.set(1.5,1,2.9); shadow.position.y=0.065;
+  shadow.visible=!gfx.shadows; g.add(shadow);
+  return {g,hull,spin,steer};
+}
+
 function makeNameplate(text){
   const label=(text||'PILOTE').toString().slice(0,15).toUpperCase();
   const tex=canvasTex(320,80,(ctx,w,h)=>{
@@ -1413,7 +1466,7 @@ const hudEls={};
 ['hudPos','hudLap','hudTime','hudBest','hudSpeed','lights','goTxt','flagTxt','camToast','mini','finish','pause','resTable']
  .forEach(id=>hudEls[id]=$(id));
 
-function yawMax(sp){ return 2.3*Math.min(sp/16,1)*(1.15-0.55*sp/TOP); }
+function yawMax(sp,topOverride){ const t=topOverride||TOP; return 2.3*Math.min(sp/16,1)*(1.15-0.55*sp/t); }
 
 /* ---------- effets météo (pluie/neige qui tombe, éclairs d'orage) ---------- */
 function buildWeatherFX(w){
@@ -1519,9 +1572,9 @@ function spawnCars(){
     const mk=(mate,slot,mine)=>{
       const idx=(N-10-slot*7+N)%N, lane=(slot%2?2.7:-2.7);
       const p=td.p[idx],n=td.n[idx],t=td.t[idx];
-      const teamIdx=mine?sel.team:(mate.team!=null?mate.team:(slot%TEAMS.length));
+      const teamIdx=mine?sel.team:(mate.team!=null?mate.team:(slot%AI_TEAMS.length));
       const team=TEAMS[teamIdx];
-      const cm=makeCar(team);
+      const cm=(team.van?makeVanCar:makeCar)(team);
       const dname=mine?dispName():mate.name;
       const car={team,isPlayer:mine,remote:!mine,
         name:dname,
@@ -1549,7 +1602,7 @@ function spawnCars(){
     const mul=DIFFS[sel.diff].mul;
     const base=[1.03,1.02,1.01,0.995,0.98,0.968,0.955,0.94,0.925,0.91];
     const ckb=[0.99,0.965,0.94,0.92,0.9,0.88,0.86,0.84,0.82,0.8];
-    TEAMS.forEach((team,s)=>{
+    AI_TEAMS.forEach((team,s)=>{
       const idx=(N-10-s*7+N)%N;
       const lane=(s%2?2.7:-2.7);
       const p=td.p[idx],n=td.n[idx],t=td.t[idx];
@@ -1580,12 +1633,13 @@ function spawnCars(){
     return;
   }
   const humans=mp?2:1;
-  const team2i=(sel.team+1)%TEAMS.length;
+  const team2i=(sel.team+1)%AI_TEAMS.length;
   const excl=mp?[sel.team,team2i]:[sel.team];
   const slots=sel.opp+humans;
   // jusqu'à 25 voitures au total : au-delà des 8/9 écuries disponibles, on
   // reboucle dessus (numérotées) plutôt que de plafonner silencieusement.
-  const avail=TEAMS.filter((_,i)=>!excl.includes(i));
+  // (les écuries secrètes — cf. TEAMS[i].hidden — ne sont jamais pilotées par une IA)
+  const avail=AI_TEAMS.filter((_,i)=>!excl.includes(i));
   const others=Array.from({length:sel.opp},(_,i)=>avail[i%avail.length]);
   const base=[1.03,1.02,1.01,0.995,0.98,0.968,0.955,0.94,0.925];
   const ckb=[0.99,0.965,0.94,0.92,0.9,0.88,0.86,0.84,0.82];
@@ -1598,7 +1652,7 @@ function spawnCars(){
     const idx=(N-10-s*7+N)%N;
     const lane=(s%2?2.7:-2.7);
     const p=td.p[idx],n=td.n[idx],t=td.t[idx];
-    const cm=makeCar(team);
+    const cm=(team.van?makeVanCar:makeCar)(team);
     const car={
       team, isPlayer:isP,
       name:isP?(mp?(isP1?'JOUEUR 1':'JOUEUR 2'):'VOUS'):(team.driver+(repeatN>0?' '+(repeatN+1):'')),
@@ -1652,6 +1706,7 @@ function trackSense(car){
 }
 
 function surface(car,dt){
+  if(car.team&&car.team.cheat) return; // le Multivan ignore l'herbe et les murs, comme tout le reste
   const al=Math.abs(car.lat);
   // les IA ignorent totalement l'herbe : seuls les murs les concernent (et à peine)
   if(al>ROAD+1.4&&!car.isPlayer){
@@ -1676,23 +1731,27 @@ function physPlayer(car,dt){
   if(car.finished){gas=false;brk=car.speed>2;}
   const st=(inp.axis!=null)?clamp(inp.axis,-1,1):((inp.left?1:0)-(inp.right?1:0));
   car.steer=lerp(car.steer,st,Math.min(1,10*dt));
-  const accelGrip=0.6+0.4*weatherGrip, brakeGrip=0.55+0.45*weatherGrip;
-  if(gas) car.speed+=30*accelGrip*(car.fuel<=0?0.25:1)*(1-car.speed/TOP)*dt;
+  // le Multivan secret ignore intégralement la météo et fait fi des limites normales
+  const cheat=!!(car.team&&car.team.cheat);
+  const top=cheat?CHEAT_TOP:TOP;
+  const accelGrip=cheat?1:(0.6+0.4*weatherGrip), brakeGrip=cheat?1:(0.55+0.45*weatherGrip);
+  const accelMul=cheat?3.4:1;
+  if(gas) car.speed+=30*accelMul*accelGrip*(car.fuel<=0?0.25:1)*(1-car.speed/top)*dt;
   else if(car.speed>0) car.speed=Math.max(car.speed-6*dt,0);
   else if(car.speed<0) car.speed=Math.min(car.speed+8*dt,0);
   if(brk){
     if(car.speed>0.5) car.speed=Math.max(car.speed-72*brakeGrip*dt,0);
     else car.speed=Math.max(car.speed-8*dt,-9);
   }
-  if(car.fuel<=0&&car.speed>16) car.speed=Math.max(16,car.speed-24*dt);
-  // ravitaillement : à l'arrêt sur la bande bleue des stands pendant 3 s
-  if(!car.finished&&inPitZone(car)&&Math.abs(car.speed)<0.8&&car.fuel<0.985){
+  if(!cheat&&car.fuel<=0&&car.speed>16) car.speed=Math.max(16,car.speed-24*dt);
+  // ravitaillement : à l'arrêt sur la bande bleue des stands pendant 3 s (le Multivan a l'essence infinie)
+  if(!cheat&&!car.finished&&inPitZone(car)&&Math.abs(car.speed)<0.8&&car.fuel<0.985){
     car.pitT+=dt;
     if(car.pitT>=3){car.fuel=1;car.pitT=0;}
-  }else car.pitT=0;
+  }else if(!cheat) car.pitT=0;
   car.thr=gas?1:0;
   const dir=car.speed<0?-1:1;
-  car.heading+=car.steer*yawMax(Math.abs(car.speed))*dt*dir;
+  car.heading+=car.steer*yawMax(Math.abs(car.speed),top)*dt*dir;
 }
 
 function cornerV(c,k){
@@ -1843,15 +1902,17 @@ function physAI(car,dt){
 }
 
 function moveCar(car,dt){
-  if(state==='race'&&!car.finished){
+  const cheat=!!(car.team&&car.team.cheat);
+  if(!cheat&&state==='race'&&!car.finished){
     car.fuel=Math.max(0,car.fuel-dt*(0.3+0.7*Math.abs(car.speed)/TOP)*(car.thr?1:0.45)/car.tank);
   }
   // adhérence météo : sur piste mouillée/enneigée, la trajectoire réelle (velHeading)
   // retarde sur le cap visuel de la voiture (car.heading) — c'est le glissement.
   // Par beau temps (weatherGrip=1) le retard est nul : comportement inchangé.
+  // Le Multivan secret ne glisse jamais, quelle que soit la météo.
   if(car.velHeading==null)car.velHeading=car.heading;
   const cornerLoad=clamp(Math.abs(car.steer)*Math.abs(car.speed)/TOP*2.2,0,1); // 0=ligne droite/lent, 1=plein virage à vive allure
-  const catchUp=lerp(16,16*weatherGrip*weatherGrip*weatherGrip,cornerLoad);
+  const catchUp=cheat?16:lerp(16,16*weatherGrip*weatherGrip*weatherGrip,cornerLoad);
   car.velHeading+=wrapPI(car.heading-car.velHeading)*Math.min(1,catchUp*dt);
   car.pos.x+=Math.sin(car.velHeading)*car.speed*dt;
   car.pos.z+=Math.cos(car.velHeading)*car.speed*dt;
@@ -1871,7 +1932,12 @@ function collisions(){
     const d=Math.hypot(dx,dz);
     if(d<3.1&&d>0.001){
       const push=(3.1-d)/2, nx=dx/d, nz=dz/d;
-      if(a.remote||b.remote){
+      const aCheat=a.team&&a.team.cheat, bCheat=b.team&&b.team.cheat;
+      if(aCheat||bCheat){
+        // le Multivan secret pousse tout sur son passage sans jamais être dévié ni ralenti
+        if(aCheat){ b.pos.x-=nx*push*4; b.pos.z-=nz*push*4; b.speed=Math.min(b.speed,a.speed*0.55); }
+        if(bCheat){ a.pos.x+=nx*push*4; a.pos.z+=nz*push*4; a.speed=Math.min(a.speed,b.speed*0.55); }
+      }else if(a.remote||b.remote){
         const loc=a.remote?b:a, sgn=a.remote?-1:1;
         loc.pos.x+=nx*push*2*sgn; loc.pos.z+=nz*push*2*sgn;
         loc.speed*=0.985;
@@ -2912,10 +2978,28 @@ function buildMenu(){
   });
   TEAMS.forEach((t,i)=>{
     const b=document.createElement('button');
-    b.className='chip';
+    b.className='chip'; b.id='teamChip'+i;
     b.innerHTML='<i style="background:'+t.css+'"></i>'+t.name;
+    if(t.hidden)b.hidden=true;
     b.onclick=()=>{sel.team=i;refreshMenu();sendTeam();};
     teamRow.appendChild(b);
+  });
+  // écurie secrète : taper 7 fois sur "Volkswagen" une fois débloquée fait apparaître le Multivan
+  let vwTapN=0,vwTapT=null;
+  const vwChip=$('teamChip10');
+  if(vwChip)vwChip.addEventListener('click',()=>{
+    vwTapN++;
+    clearTimeout(vwTapT);
+    vwTapT=setTimeout(()=>{vwTapN=0;},1800);
+    if(vwTapN>=7){
+      vwTapN=0;
+      const mv=$('teamChip11');
+      if(mv&&mv.hidden){
+        mv.hidden=false;
+        mv.classList.add('unlockPulse');
+        setTimeout(()=>mv.classList.remove('unlockPulse'),1800);
+      }
+    }
   });
   $('lapM').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
@@ -2988,6 +3072,8 @@ function buildMenu(){
     if(online&&net.role==='guest'&&net.connected)return;
     sel.mp=false;sel.net=false;sel.cine=false;sel.tourn=true;refreshMenu();saveNetPrefs();
   };
+  // secrets en cascade sur le badge de version : 7 taps → mode Cinématique,
+  // encore 7 taps (une fois débloqué) → l'écurie Volkswagen apparaît dans ÉCURIE.
   let verTapN=0,verTapT=null;
   $('verBadge').addEventListener('click',()=>{
     verTapN++;
@@ -2995,10 +3081,12 @@ function buildMenu(){
     verTapT=setTimeout(()=>{verTapN=0;},1800);
     if(verTapN>=7){
       verTapN=0;
-      if($('cineChip').hidden){
-        $('cineChip').hidden=false;
-        $('cineChip').classList.add('unlockPulse');
-        setTimeout(()=>$('cineChip').classList.remove('unlockPulse'),1800);
+      const cineC=$('cineChip'), vwC=$('teamChip10');
+      const target=cineC.hidden?cineC:(vwC&&vwC.hidden?vwC:null);
+      if(target){
+        target.hidden=false;
+        target.classList.add('unlockPulse');
+        setTimeout(()=>target.classList.remove('unlockPulse'),1800);
       }
     }
   });
