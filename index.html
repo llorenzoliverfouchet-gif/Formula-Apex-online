@@ -427,7 +427,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v2.5 · 13/07/2026</div>
+  <div id="verBadge" title="Version">v2.6 · 13/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -2015,15 +2015,18 @@ function camFor(cam,c,cp,dt){
     cam.lookAt(c.pos.x+fwd.x*5,1.4,c.pos.z+fwd.z*5);
     cam.fov=70+spd*0.12;
   }else if(camMode===1){
-    const sh=spd*0.0015;
     // le Multivan est bien plus haut et plus carré qu'une monoplace : la caméra cockpit
-    // doit être placée au niveau du poste de conduite du van, pas dans le plancher.
+    // doit être placée au niveau du poste de conduite du van, pas dans le plancher —
+    // et le tremblement de caméra est normalisé à SA vitesse de pointe (sinon, à 500 km/h,
+    // il devient énorme comparé à ce qu'une monoplace connaît jamais).
     const isVan=c.team&&c.team.van;
-    const eyeY=isVan?1.5:1.12, eyeF=isVan?0.85:1.2;
+    const top=isVan?CHEAT_TOP:TOP;
+    const sh=(spd/top)*0.12;
+    const eyeY=isVan?1.32:1.12, eyeF=isVan?0.6:1.2;
     cam.position.set(c.pos.x+fwd.x*eyeF+rand(-sh,sh),eyeY+rand(-sh,sh),c.pos.z+fwd.z*eyeF);
     cam.up.set(0,1,0);
-    cam.lookAt(c.pos.x+fwd.x*50,eyeY-0.32,c.pos.z+fwd.z*50);
-    cam.fov=80+spd*0.1;
+    cam.lookAt(c.pos.x+fwd.x*50,eyeY-0.28,c.pos.z+fwd.z*50);
+    cam.fov=isVan?(74+(spd/top)*14):(80+spd*0.1);
   }else if(camMode===2){
     let best=tvSpots[0],bd=Infinity;
     for(const s of tvSpots){const d=s.distanceToSquared(c.pos);if(d<bd){bd=d;best=s;}}
