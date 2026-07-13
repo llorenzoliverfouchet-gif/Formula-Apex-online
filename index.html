@@ -348,6 +348,7 @@ body.cine #touchL2,body.cine #touchR2{display:none}
 #btns button{width:46px;height:46px;border-radius:10px;background:#0a0c12cc;
   border:1px solid var(--line);font-size:20px}
 #btns button:active{background:var(--acc)}
+#autoBtn.on{background:var(--acc);color:#001217;border-color:var(--acc)}
 #mini{background:#0a0c1288;border:1px solid var(--line);border-radius:10px}
 #times{position:absolute;left:12px;bottom:118px;display:flex;flex-direction:column;gap:6px}
 #speed{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
@@ -427,7 +428,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v2.8 · 13/07/2026</div>
+  <div id="verBadge" title="Version">v2.9 · 13/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -580,6 +581,7 @@ body.noTouch #kbHint{display:block}
     <div id="topR">
       <div id="btns">
         <button id="cinePrevBtn" title="Voiture précédente" hidden>⏮</button>
+        <button id="autoBtn" title="Pilote auto — accélère, la direction suit la piste toute seule" hidden>🧭</button>
         <button id="camBtn" title="Changer la vue">📷</button>
         <button id="cineNextBtn" title="Voiture suivante" hidden>⏭</button>
         <button id="sndBtn" title="Son">🔊</button>
@@ -1769,8 +1771,22 @@ function physPlayer(car,dt){
   const inp=car.inp||input;
   let gas=inp.gas, brk=inp.brk;
   if(car.finished){gas=false;brk=car.speed>2;}
-  const st=(inp.axis!=null)?clamp(inp.axis,-1,1):((inp.left?1:0)-(inp.right?1:0));
-  car.steer=lerp(car.steer,st,Math.min(1,10*dt));
+  let st;
+  if(car.autopilot){
+    // pilote auto (Multivan uniquement, en solo) : vise un point sur l'axe de la piste
+    // devant la voiture, exactement comme une IA — seuls le gaz et le frein restent
+    // au joueur, la direction tourne toute seule pour suivre chaque virage parfaitement.
+    // Visée plus courte et gain plus élevé qu'une IA classique pour rester précis même
+    // en pleine décélération d'un freinage à 500 km/h vers un virage serré.
+    const lookDist=clamp(5+Math.abs(car.speed)*0.3,6,45);
+    const ah=Math.max(2,Math.round(lookDist/td.ds));
+    const j2=(car.idx+ah)%N;
+    const diff=wrapPI(Math.atan2(td.p[j2].x-car.pos.x,td.p[j2].z-car.pos.z)-car.heading);
+    st=clamp(diff*3.4,-1,1);
+  }else{
+    st=(inp.axis!=null)?clamp(inp.axis,-1,1):((inp.left?1:0)-(inp.right?1:0));
+  }
+  car.steer=lerp(car.steer,st,Math.min(1,(car.autopilot?16:10)*dt));
   // le Multivan secret ignore intégralement la météo et fait fi des limites normales
   const cheat=!!(car.team&&car.team.cheat);
   const top=cheat?CHEAT_TOP:TOP;
@@ -1783,6 +1799,26 @@ function physPlayer(car,dt){
     if(car.speed>0.5) car.speed=Math.max(car.speed-72*brakeGrip*dt,0);
     else car.speed=Math.max(car.speed-8*dt,-9);
   }
+  if(car.autopilot&&car.speed>0){
+    // gouverneur de vitesse du pilote auto : anticipe les virages à venir (comme une IA)
+    // et freine tout seul si besoin pour ne jamais sortir de piste — sans jamais faire
+    // avancer la voiture toute seule : sans gaz elle continue de ralentir normalement ci-dessus.
+    let safeV=top;
+    const decel=450;
+    const maxLook=Math.ceil(((car.speed+10)*(car.speed+10))/(2*decel)/td.ds)+3;
+    for(let k=0;k<=maxLook;k+=1){
+      const j=(car.idx+k)%N;
+      // le paramètre de grip (<1, au lieu de 1) resserre le plafond des virages sans
+      // toucher aux lignes droites (où cornerVTop renvoie "top" quel que soit ce
+      // paramètre) : sans cette marge, les virages tout juste "à la limite théorique"
+      // n'étaient jamais repérés comme un point à ralentir et finissaient par frôler le mur.
+      const vc=cornerVTop(td.c[j],0.72,top);
+      if(vc>=safeV)continue;
+      const allow=Math.sqrt(vc*vc+2*decel*k*td.ds)*0.35;
+      if(allow<safeV)safeV=allow;
+    }
+    if(car.speed>safeV) car.speed=Math.max(safeV,car.speed-1100*dt);
+  }
   if(!cheat&&car.fuel<=0&&car.speed>16) car.speed=Math.max(16,car.speed-24*dt);
   // ravitaillement : à l'arrêt sur la bande bleue des stands pendant 3 s (le Multivan a l'essence infinie)
   if(!cheat&&!car.finished&&inPitZone(car)&&Math.abs(car.speed)<0.8&&car.fuel<0.985){
@@ -1794,6 +1830,13 @@ function physPlayer(car,dt){
   car.heading+=car.steer*yawMax(Math.abs(car.speed),top)*dt*dir;
 }
 
+// variante de cornerV paramétrée par la vitesse de pointe du véhicule (au lieu du
+// TOP=80 des monoplaces en dur) — utilisée par le gouverneur du pilote auto du
+// Multivan, dont la pointe (CHEAT_TOP=139) est bien plus haute que TOP.
+function cornerVTop(c,k,vtop){
+  if(c<0.0012) return vtop;
+  return Math.min(vtop, 2.645*k/(c+1.265*k/vtop));
+}
 function cornerV(c,k){
   // vitesse max de virage compatible avec yawMax : v*c = k*2.3*(1.15-0.55*v/TOP)
   if(c<0.0012) return TOP;
@@ -2922,6 +2965,13 @@ addEventListener('gamepaddisconnected',()=>{
 $('camBtn').onclick=cycleCam;
 $('cinePrevBtn').onclick=()=>cineStep(-1);
 $('cineNextBtn').onclick=()=>cineStep(1);
+$('autoBtn').onclick=()=>{
+  if(!player)return;
+  player.autopilot=!player.autopilot;
+  $('autoBtn').classList.toggle('on',player.autopilot);
+  hudEls.camToast.textContent=player.autopilot?'🧭 PILOTE AUTO ACTIVÉ — accélère, la direction suit la piste':'🧭 PILOTE AUTO DÉSACTIVÉ';
+  hudEls.camToast.hidden=false; toastT=1.8;
+};
 $('sndBtn').onclick=()=>{sndOn=!sndOn;$('sndBtn').textContent=sndOn?'🔊':'🔇';};
 $('pauseBtn').onclick=()=>togglePause();
 function togglePause(){
@@ -3311,6 +3361,11 @@ function startRace(){
   hudEls.lights.hidden=false;
   [...hudEls.lights.children].forEach(el=>el.classList.remove('on'));
   camMode=0; cineIdx=0; buildWorld();
+  // pilote auto : uniquement en solo au volant du Multivan secret — remis à zéro à chaque départ
+  const vanSolo=!mp&&!online&&!cine&&player&&player.team&&player.team.van;
+  $('autoBtn').hidden=!vanSolo;
+  $('autoBtn').classList.remove('on');
+  if(player)player.autopilot=false;
   state='count'; countT=0; goT=0; flagT=0;
   last=performance.now();
   doRender();
