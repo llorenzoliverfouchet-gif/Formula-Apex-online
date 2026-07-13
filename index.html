@@ -427,7 +427,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v2.3 · 13/07/2026</div>
+  <div id="verBadge" title="Version">v2.4 · 13/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -1365,33 +1365,63 @@ function makeVanCar(team){
   const g=new THREE.Group(), hull=new THREE.Group(); g.add(hull);
   const paint=c=>gfx.hq?new THREE.MeshStandardMaterial({color:c,metalness:0.35,roughness:0.42,
     envMap:worldEnv,envMapIntensity:0.6}):ML(c);
-  const body=paint(team.c), dark=ML(0x14161a), grey=ML(0x6a6e76),
-    glass=ML(0x1c2430), chrome=ML(0xd8dde3);
+  const body=paint(team.c), clad=ML(0x24262b), dark=ML(0x14161a), grey=ML(0x6a6e76),
+    glass=ML(0x1c2430), chrome=ML(0xe8ecf0), lamp=ML(0xfff6d8), tail=ML(0xb01818);
   const B=(w,h,d,mat,x,y,z,parent)=>{
     const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
     m.position.set(x,y,z);(parent||hull).add(m);return m;};
-  B(1.94,1.28,4.3,body,0,1.02,-0.05);            // caisse haute et carrée, comme un vrai van
-  B(1.94,0.24,0.9,dark,0,0.42,1.85);             // pare-choc avant
-  B(1.94,0.24,0.9,dark,0,0.42,-2.15);            // pare-choc arrière
-  B(1.86,0.75,0.62,glass,0,1.72,1.35);           // pare-brise
-  B(1.98,0.42,3.3,glass,0,1.5,-0.15);            // bande de vitres latérales
-  B(1.5,0.5,0.08,chrome,0,0.98,2.16);            // calandre chromée
+  // ---- caisse : soubassement foncé + carrosserie + pavillon, comme un vrai T5 ----
+  B(1.98,0.34,4.5,clad,0,0.34,-0.1);                      // bas de caisse / protections plastique
+  B(1.9,1.0,4.4,body,0,1.05,-0.1);                        // caisse principale, carrée et haute
+  B(1.9,0.55,0.35,body,0,0.85,2.05);                      // avancée du capot court (cab-forward)
+  B(1.82,0.12,4.0,body,0,1.61,-0.1);                      // pavillon
+  [-0.97,0.97].forEach(x=>B(0.02,0.05,4.2,dark,x,0.85,-0.1)); // ligne de caractère (nervure latérale)
+  [-0.75,0.75].forEach(x=>B(0.06,0.045,3.6,chrome,x,1.68,-0.1)); // barres de toit
+  // ---- avant ----
+  B(1.98,0.42,0.5,clad,0,0.32,2.05);                      // pare-choc avant
+  [-0.75,0.75].forEach(x=>B(0.35,0.14,0.05,dark,x,0.28,2.28)); // grilles basses de pare-choc
+  [0.86,0.94,1.02,1.10].forEach(y=>B(1.35,0.045,0.05,chrome,0,y,2.22)); // calandre à lattes chromées
   const badge=new THREE.Mesh(new THREE.CircleGeometry(0.22,16),ML(0xf4f4f4));
-  badge.position.set(0,0.98,2.21); hull.add(badge);
+  badge.position.set(0,0.98,2.25); hull.add(badge);
   const badgeRing=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.035,8,16),chrome);
-  badgeRing.position.set(0,0.98,2.2); hull.add(badgeRing);
-  [-0.78,0.78].forEach(x=>{
-    const hd=new THREE.Mesh(new THREE.SphereGeometry(0.15,10,8),ML(0xfff6d8));
-    hd.position.set(x,0.86,2.15); hull.add(hd);
+  badgeRing.position.set(0,0.98,2.24); hull.add(badgeRing);
+  [-0.72,0.72].forEach(x=>{
+    B(0.38,0.22,0.1,lamp,x,0.9,2.16);                     // phares
+    B(0.42,0.26,0.04,chrome,x,0.9,2.2);                   // cerclage chromé
   });
-  [-1.0,1.0].forEach(x=>B(0.1,0.16,0.28,dark,x,1.35,1.35));  // rétroviseurs
-  B(0.03,1.0,0.02,dark,0.98,1.0,0.1);            // ligne de porte coulissante
-  const wg=new THREE.CylinderGeometry(0.5,0.5,0.34,14); wg.rotateZ(Math.PI/2);
-  const hg=new THREE.CylinderGeometry(0.24,0.24,0.36,10); hg.rotateZ(Math.PI/2);
+  // ---- vitrage : pare-brise incliné, vitres latérales avant/arrière séparées par un montant ----
+  const windshield=new THREE.Mesh(new THREE.BoxGeometry(1.82,0.7,0.08),glass);
+  windshield.position.set(0,1.66,1.62); windshield.rotation.x=-0.34; hull.add(windshield);
+  B(1.98,0.5,1.5,glass,0,1.55,0.55);                      // vitre latérale avant
+  [-0.98,0.98].forEach(x=>B(0.06,0.55,0.09,dark,x,1.55,-0.28)); // montant central (pied B)
+  B(1.98,0.5,1.5,glass,0,1.55,-1.15);                     // vitre latérale arrière
+  // ---- portière coulissante : montants + poignées jumelles ----
+  [-0.985,0.985].forEach(x=>{
+    B(0.025,1.0,0.02,dark,x,1.0,0.65);
+    B(0.025,1.0,0.02,dark,x,1.0,-0.45);
+    B(0.03,0.12,0.03,dark,x,1.05,0.05);
+    B(0.03,0.12,0.03,dark,x,1.05,0.25);
+  });
+  // ---- rétroviseurs ----
+  [-1.0,1.0].forEach(x=>{
+    B(0.05,0.05,0.26,dark,x,1.42,1.32);
+    B(0.13,0.19,0.24,dark,x*1.06,1.44,1.45);
+  });
+  // ---- arrière ----
+  B(1.98,0.42,0.5,clad,0,0.32,-2.05);                     // pare-choc arrière
+  [-0.8,0.8].forEach(x=>B(0.3,0.22,0.08,tail,x,0.95,-2.28)); // feux arrière
+  // ---- passages de roue ----
+  [1.55,-1.55].forEach(z=>[-1.0,1.0].forEach(x=>B(0.14,0.36,0.86,dark,x,0.54,z)));
+  // ---- roues, jantes à double anneau ----
+  const wg=new THREE.CylinderGeometry(0.5,0.5,0.34,16); wg.rotateZ(Math.PI/2);
+  const hg=new THREE.CylinderGeometry(0.26,0.26,0.38,16); hg.rotateZ(Math.PI/2);
+  const hg2=new THREE.CylinderGeometry(0.31,0.31,0.05,16); hg2.rotateZ(Math.PI/2);
   const tyre=ML(0x1b1b1f);
   const spin=[],steer=[];
   const mkWheel=(x,z,front)=>{
-    const w=new THREE.Mesh(wg,tyre); w.add(new THREE.Mesh(hg,grey));
+    const w=new THREE.Mesh(wg,tyre);
+    w.add(new THREE.Mesh(hg,grey));
+    const lip=new THREE.Mesh(hg2,chrome); lip.position.x=Math.sign(x)*0.16; w.add(lip);
     spin.push(w);
     if(front){ const sg=new THREE.Group(); sg.position.set(x,0.5,z);
       sg.add(w); hull.add(sg); steer.push(sg); }
