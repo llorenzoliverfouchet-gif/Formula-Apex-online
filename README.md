@@ -7,7 +7,6 @@ Jeu de course de Formule 1 en 3D, jouable directement dans le navigateur. 10 éc
 ## Fonctionnalités
 
 - **10 écuries et pilotes réels**, **11 circuits** (Monaco, Bahreïn, et d'autres tracés emblématiques, de jour comme de nuit)
-- 🧭 **Free Roam** — un grand circuit à part, sans chrono ni tours à boucler : choisis ton écurie et balade-toi librement à travers ville, autoroute, plaines, collines et forêt dense, au milieu d'un trafic ambiant de voitures civiles (dont certaines arrivent en sens inverse). Essence infinie, aucune fin de course. Accessible directement comme un circuit de plus dans la sélection CIRCUIT.
 - **Plusieurs modes de jeu** :
   - 🏎 Solo contre des IA
   - 👥 2 joueurs en écran partagé (même clavier)

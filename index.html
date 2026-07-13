@@ -247,7 +247,6 @@ body.mp #split{display:block}
 body.cine #topL,body.cine #times,body.cine #speed,body.cine #kbHint,
 body.cine #touchL,body.cine #touchR,body.cine #touchWheel,
 body.cine #touchL2,body.cine #touchR2{display:none}
-body.roam #hudPos,body.roam #hudTime,body.roam #hudBest,body.roam #fuelBox{display:none}
 #duoHint{display:none;font-size:11px;color:var(--mut);margin-top:8px}
 #duoHint.show{display:block}
 #serverHint{display:none;font-size:11px;color:var(--mut);margin-top:8px}
@@ -256,8 +255,6 @@ body.roam #hudPos,body.roam #hudTime,body.roam #hudBest,body.roam #fuelBox{displ
 #cineHint.show{display:block}
 #tournHint{display:none;font-size:11px;color:var(--mut);margin-top:8px}
 #tournHint.show{display:block}
-#roamHint{display:none;font-size:11px;color:var(--mut);margin-top:8px}
-#roamHint.show{display:block}
 #tournTable{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 4px}
 #tournTable td{padding:5px 4px;border-bottom:1px solid var(--line)}
 #tournTable tr.me td{color:var(--yel);font-weight:700}
@@ -430,7 +427,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v2.7 · 13/07/2026</div>
+  <div id="verBadge" title="Version">v2.6 · 13/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -454,7 +451,6 @@ body.noTouch #kbHint{display:block}
     <div id="duoHint">Même clavier — Joueur 1 : ZQSD / WASD · Joueur 2 : flèches. Le joueur 2 reçoit automatiquement l'écurie suivante.</div>
     <div id="tournHint">10 tours sur chacun des 11 circuits, dans l'ordre. À l'arrivée de chaque course, un classement cumulé (points façon F1 : 25-18-15-12-10-8-6-4-2-1) s'affiche et tu enchaînes directement sur la course suivante.</div>
     <div id="cineHint">Mode réalisateur — zéro voiture jouable : 10 IA se disputent la course en boucle, la caméra suit celle de ton choix. Pendant la course : ⏮/⏭ ou ← → pour changer de voiture suivie, C/V pour changer d'angle. Idéal pour filmer des vidéos.</div>
-    <div id="roamHint">🧭 Circuit « Free Roam » sélectionné : pas de tours, pas de chrono, essence infinie — choisis ta voiture et balade-toi tranquillement entre ville, autoroute, plaines, collines et forêt, au milieu d'un trafic ambiant.</div>
     <div id="netBox" hidden>
       <label class="netLbl" style="margin-top:0">TON PSEUDO — affiché en hologramme au-dessus de ta voiture</label>
       <input id="unameInput" type="text" maxlength="15" placeholder="PILOTE (15 car. max)" autocomplete="off">
@@ -670,15 +666,6 @@ const TEAMS=[
 ];
 // écuries pouvant être pilotées par une IA (les secrètes ci-dessus en sont exclues)
 const AI_TEAMS=TEAMS.filter(t=>!t.hidden);
-// livrées neutres pour le trafic ambiant du mode Free Roam (pas des écuries F1)
-const CIVILIAN_LIVERIES=[
- {name:'Berline',  driver:'', c:0xd9dde2, a:0x1c1f24, css:'#d9dde2', tank:9999},
- {name:'Citadine', driver:'', c:0x1c1f24, a:0xd9dde2, css:'#1c1f24', tank:9999},
- {name:'Break',    driver:'', c:0x2e6cff, a:0xffffff, css:'#2e6cff', tank:9999},
- {name:'SUV',      driver:'', c:0x7c828a, a:0x111318, css:'#7c828a', tank:9999},
- {name:'Taxi',     driver:'', c:0xffd34d, a:0x111318, css:'#ffd34d', tank:9999},
- {name:'Utilitaire',driver:'',c:0xb6babd, a:0x2c313b, css:'#b6babd', tank:9999},
-];
 
 const TRACKS=[
  {name:'Monaco', sub:'Monte-Carlo : rues étroites, port scintillant', scale:1.0,
@@ -757,26 +744,6 @@ const TRACKS=[
     curbA:'#d81f1f',curbB:'#f4f4f4',wallA:'#ff2e88',wallB:'#2ee6ff',
     sun:[-360,520,-240],sunC:'#aabbff',sunI:0.38,water:false},
   sc:{bldNight:32,lamp:44,stand:2,stars:true,sphere:true}},
-
- // ---- Free Roam : grande boucle non compétitive (ville → autoroute → plaines → collines → forêt) ----
- // pas un circuit de course : voir sel.freeroam / trackCur.freeroam pour le traitement spécial
- // (pas de tours à finir, trafic ambiant à la place des adversaires IA, essence infinie).
- {name:'Free Roam', sub:'Balade libre : ville, autoroute, plaines, collines, forêt', scale:1.0, freeroam:true,
-  pts:[[0,0],[40,-90],[20,-190],[90,-260],[260,-300],[520,-320],[780,-330],[1000,-360],
-       [1180,-460],[1260,-620],[1220,-800],[1080,-940],[880,-1000],[680,-980],[520,-880],
-       [420,-720],[380,-540],[300,-380],[160,-280],[40,-220],[-60,-160],[-40,-60]],
-  theme:{skyTop:'#79b7e8',skyBot:'#dcedfb',fog:'#dcedfb',ground:'#6f9c48',night:false,road:0.26,
-    curbA:'#d81f1f',curbB:'#f4f4f4',wallA:'#aeb6bf',wallB:'#8d949d',
-    sun:[380,540,260],sunC:'#fff6e0',sunI:1.02,water:false},
-  sc:{}},
-];
-// zones traversées par la boucle Free Roam, en fraction de l'indice le long de la piste (0..1)
-const FREE_ROAM_ZONES=[
- {name:'city',    from:0.00, to:0.16},
- {name:'highway', from:0.16, to:0.38},
- {name:'plains',  from:0.38, to:0.58},
- {name:'hills',   from:0.58, to:0.75},
- {name:'forest',  from:0.75, to:1.00},
 ];
 
 /* ================= OUTILS ================= */
@@ -1053,24 +1020,6 @@ function placeOut(td,minD,maxD,clear){
   }
   return null;
 }
-// variante de placeOut restreinte à une plage d'indices [i0,i1) le long de la piste
-// (utilisée pour caler le décor du mode Free Roam sur ses différentes zones).
-function placeOutZone(td,i0,i1,minD,maxD,clear){
-  clear=clear||17;
-  const span=Math.max(1,i1-i0);
-  for(let tries=0;tries<60;tries++){
-    const i=i0+randi(span), side=Math.random()<0.5?-1:1, d=rand(minD,maxD);
-    const p=td.p[i], n=td.n[i];
-    const pos=new THREE.Vector3(p.x+n.x*side*d,0,p.z+n.z*side*d);
-    let ok=true;
-    for(let j=0;j<N;j+=3){
-      const q=td.p[j]; const dx=pos.x-q.x,dz=pos.z-q.z;
-      if(dx*dx+dz*dz<clear*clear){ok=false;break;}
-    }
-    if(ok) return pos;
-  }
-  return null;
-}
 const ML=(c,o)=>new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));
 function markShadows(o){o.traverse(m=>{if(m.isMesh)m.castShadow=true;});}
 
@@ -1285,7 +1234,7 @@ function addFerris(td){
   return wheel;
 }
 
-function buildScenery(td,th,sc,noBoards){
+function buildScenery(td,th,sc){
   // sol
   if(th.water){
     const islandR=td.maxR+150;
@@ -1357,50 +1306,7 @@ function buildScenery(td,th,sc,noBoards){
   }
   if(sc.wheel)anim.wheel=addFerris(td);
   if(sc.sphere)anim.sphere=addVegasSphere(td);
-  if(!noBoards) addBoards(td);
-  return anim;
-}
-
-// décor du mode Free Roam : sol/ciel/soleil génériques (via buildScenery, sans panneaux
-// publicitaires ni scatter aléatoire classique), puis décor placé zone par zone le long
-// de la grande boucle — ville dense, autoroute, plaines éparses, collines, forêt dense.
-function buildFreeRoamScenery(td,th){
-  const anim=buildScenery(td,th,{cloud:14},true);
-  const zone=name=>{
-    const z=FREE_ROAM_ZONES.find(x=>x.name===name);
-    return [Math.floor(z.from*N), Math.floor(z.to*N)];
-  };
-  // ville : immeubles denses + lampadaires de rue
-  {
-    const [a,b]=zone('city');
-    const texArr=[windowTex(false),windowTex(false),windowTex(false)];
-    for(let k=0;k<50;k++){const p=placeOutZone(td,a,b,24,120,24);if(p)addBuilding(p,false,texArr);}
-    for(let k=0;k<20;k++)addLamp(td,a+Math.floor((b-a)*k/20),k%2?1:-1,null);
-  }
-  // autoroute : lampadaires régulièrement espacés, végétation clairsemée
-  {
-    const [a,b]=zone('highway');
-    for(let k=0;k<18;k++)addLamp(td,a+Math.floor((b-a)*k/18),k%2?1:-1,null);
-    for(let k=0;k<10;k++){const p=placeOutZone(td,a,b,20,90,20);if(p)addRoundTree(p);}
-  }
-  // plaines : très ouvertes, quelques arbres isolés et reliefs doux
-  {
-    const [a,b]=zone('plains');
-    for(let k=0;k<12;k++){const p=placeOutZone(td,a,b,22,160,22);if(p)addRoundTree(p);}
-    for(let k=0;k<5;k++)addHill(td,false);
-  }
-  // collines : reliefs marqués, arbres groupés
-  {
-    const [a,b]=zone('hills');
-    for(let k=0;k<9;k++)addHill(td,false);
-    for(let k=0;k<24;k++){const p=placeOutZone(td,a,b,18,120,18);if(p)addRoundTree(p);}
-  }
-  // forêt : très dense, comme demandé
-  {
-    const [a,b]=zone('forest');
-    for(let k=0;k<80;k++){const p=placeOutZone(td,a,b,16,120,16);if(p)addPine(p,false);}
-    for(let k=0;k<14;k++){const p=placeOutZone(td,a,b,16,120,16);if(p)addRoundTree(p);}
-  }
+  addBoards(td);
   return anim;
 }
 
@@ -1559,7 +1465,7 @@ function makeNameplate(text){
 }
 
 /* ================= COURSE ================= */
-let cars=[], player=null, players=[], mp=false, cine=false, cineIdx=0, roam=false;
+let cars=[], player=null, players=[], mp=false, cine=false, cineIdx=0;
 let state='menu', lapsTotal=3, raceT0=0, countT=0, goT=0, flagT=0;
 let camMode=0; const CAMS=['POURSUITE','COCKPIT','CAMÉRA TV','AÉRIENNE'];
 let startMats=null, anim=null, td=null, trackCur=null, prevState='race';
@@ -1664,7 +1570,7 @@ function buildWorld(){
   buildRoad(td,th);
   buildPitLane(td);
   startMats=buildGantry(td,trackCur.name);
-  anim=trackCur.freeroam?buildFreeRoamScenery(td,th):buildScenery(td,th,trackCur.sc);
+  anim=buildScenery(td,th,trackCur.sc);
   tvSpots=[];
   for(let k=0;k<12;k++){
     const i=Math.floor(k*N/12);
@@ -1758,56 +1664,6 @@ function spawnCars(){
     cineIdx=clamp(cineIdx,0,cars.length-1);
     return;
   }
-  if(roam){
-    // mode Free Roam : le joueur choisit son écurie comme d'habitude, mais les
-    // "adversaires" sont un trafic ambiant tranquille (voitures civiles neutres,
-    // certaines venant en sens inverse) plutôt que des IA de course.
-    const idx0=(N-10+N)%N, lane0=-2.7;
-    const p0=td.p[idx0],n0=td.n[idx0],t0=td.t[idx0];
-    const team=TEAMS[sel.team];
-    const cm=(team.van?makeVanCar:makeCar)(team);
-    const you={
-      team, isPlayer:true,
-      name:dispName?dispName():'VOUS',
-      inp:input,
-      fuel:1, tank:team.tank||120, pitT:0, pitting:false,
-      mesh:cm.g, hull:cm.hull, spin:cm.spin, steerG:cm.steer,
-      pos:new THREE.Vector3(p0.x+n0.x*lane0,0,p0.z+n0.z*lane0),
-      heading:Math.atan2(t0.x,t0.z), speed:0, steer:0, thr:0,
-      idx:idx0, lat:lane0, lap:0, lane0:0, lane:lane0, laneT:lane0,
-      skill:1, ck:1, pph:0, pfr:1, dbl:0, dblCd:0, dblSide:1,
-      lapStart:0, lastLap:null, best:null, finished:false, finishTime:null
-    };
-    cm.g.position.set(you.pos.x,0.12,you.pos.z);
-    cm.g.rotation.y=you.heading;
-    scene.add(cm.g); cars.push(you);
-    player=you; players[0]=you;
-    const nTraffic=clamp(sel.opp,4,20);
-    for(let s=0;s<nTraffic;s++){
-      const liv=CIVILIAN_LIVERIES[s%CIVILIAN_LIVERIES.length];
-      const cm2=makeCar(liv);
-      const dir=Math.random()<0.5?1:-1;
-      const prog=randi(N);
-      const lane=dir>0?-2.7:2.7;
-      const p=td.p[prog],n2=td.n[prog],t=td.t[prog];
-      const heading=Math.atan2(t.x,t.z)+(dir<0?Math.PI:0);
-      const car={
-        team:liv, isPlayer:false, traffic:true,
-        name:'', inp:null,
-        fuel:1, tank:9999, pitT:0, pitting:false,
-        mesh:cm2.g, hull:cm2.hull, spin:cm2.spin, steerG:cm2.steer,
-        pos:new THREE.Vector3(p.x+n2.x*lane,0,p.z+n2.z*lane),
-        heading, speed:0, steer:0, thr:0,
-        idx:prog, lat:lane, lap:0, lane0:lane, lane, laneT:lane,
-        finished:false, finishTime:null,
-        trafProg:prog, trafDir:dir, trafSpeed:rand(9,16), trafLane:lane
-      };
-      cm2.g.position.set(car.pos.x,0.12,car.pos.z);
-      cm2.g.rotation.y=car.heading;
-      scene.add(cm2.g); cars.push(car);
-    }
-    return;
-  }
   const humans=mp?2:1;
   const team2i=(sel.team+1)%AI_TEAMS.length;
   const excl=mp?[sel.team,team2i]:[sel.team];
@@ -1861,9 +1717,9 @@ function onLap(car){
   const lt=now-car.lapStart;
   car.lastLap=lt; if(car.best==null||lt<car.best)car.best=lt;
   car.lapStart=now;
-  // le Multivan secret ne peut jamais "terminer" la course, et le mode Free Roam
-  // n'a pas de ligne d'arrivée : dans les deux cas on continue de tourner sans fin.
-  if(car.lap>lapsTotal&&!car.finished&&!(car.team&&car.team.cheat)&&!roam){
+  // le Multivan secret ne peut jamais "terminer" la course : il continue de tourner
+  // (ses tours et son meilleur temps restent comptés, juste pour le fun).
+  if(car.lap>lapsTotal&&!car.finished&&!(car.team&&car.team.cheat)){
     car.finished=true; car.finishTime=now-raceT0;
     if(car.isPlayer)playerFinished();
   }
@@ -2086,8 +1942,7 @@ function physAI(car,dt){
 
 function moveCar(car,dt){
   const cheat=!!(car.team&&car.team.cheat);
-  // le mode Free Roam est une balade tranquille : essence infinie, pas de gestion de stand.
-  if(!cheat&&!roam&&state==='race'&&!car.finished){
+  if(!cheat&&state==='race'&&!car.finished){
     car.fuel=Math.max(0,car.fuel-dt*(0.3+0.7*Math.abs(car.speed)/TOP)*(car.thr?1:0.45)/car.tank);
   }
   // adhérence météo : sur piste mouillée/enneigée, la trajectoire réelle (velHeading)
@@ -2107,26 +1962,6 @@ function moveCar(car,dt){
   const w=car.speed*dt/0.44;
   car.spin.forEach(m=>m.rotation.x+=w);
   car.steerG.forEach(sg=>sg.rotation.y=car.steer*0.42);
-}
-
-// trafic ambiant du mode Free Roam : suit la route sans logique de course (pas de
-// dépassement, pas d'arrêt au stand), simplement une progression le long de la piste —
-// certaines voitures roulent en sens inverse pour donner une impression de circulation réelle.
-function moveTraffic(car,dt){
-  const ds=td.ds||1;
-  car.trafProg+=car.trafDir*car.trafSpeed*dt/ds;
-  if(car.trafProg>=N)car.trafProg-=N;
-  if(car.trafProg<0)car.trafProg+=N;
-  const i=Math.floor(car.trafProg)%N, f=car.trafProg-Math.floor(car.trafProg), j=(i+1)%N;
-  const p=td.p[i],p2=td.p[j],n=td.n[i],t=td.t[i];
-  car.pos.x=lerp(p.x,p2.x,f)+n.x*car.trafLane;
-  car.pos.z=lerp(p.z,p2.z,f)+n.z*car.trafLane;
-  car.heading=Math.atan2(t.x,t.z)+(car.trafDir<0?Math.PI:0);
-  car.idx=i; car.speed=car.trafSpeed*car.trafDir;
-  car.mesh.position.set(car.pos.x,0.12,car.pos.z);
-  car.mesh.rotation.y=car.heading;
-  const w=car.trafSpeed*dt/0.44;
-  car.spin.forEach(m=>m.rotation.x+=w);
 }
 
 function collisions(){
@@ -2236,10 +2071,6 @@ function updateHUD(){
   const rank=ranking();
   if(cine){
     // HUD texte masqué en mode cinématique (image propre pour la vidéo) — seule la minimap reste.
-  }else if(roam){
-    // pas de course en Free Roam : ni position, ni tours, ni essence — juste la vitesse.
-    hudEls.hudLap.textContent='🧭 BALADE LIBRE';
-    hudEls.hudSpeed.textContent=Math.round(Math.abs(player.speed)*3.6);
   }else if(!mp){
     const c=player;
     hudEls.hudPos.innerHTML='P'+(rank.indexOf(c)+1)+'<i>/'+cars.length+'</i>';
@@ -2947,13 +2778,12 @@ function step(dt){
   }
   if(state==='race'||state==='finish'){
     for(const c of cars){
-      if(c.remote||c.traffic)continue;
+      if(c.remote)continue;
       if(c.isPlayer)physPlayer(c,dt); else physAI(c,dt);
     }
-    for(const c of cars){ if(c.traffic)moveTraffic(c,dt); }
     collisions();
     for(const c of cars){
-      if(c.remote)updateRemote(c,dt); else if(!c.traffic)moveCar(c,dt);
+      if(c.remote)updateRemote(c,dt); else moveCar(c,dt);
     }
     if(online)netTick();
   }
@@ -3388,7 +3218,6 @@ function buildMenu(){
 }
 function refreshMenu(){
   const acc=TEAMS[sel.team].css;
-  const isRoam=!!(TRACKS[sel.track]&&TRACKS[sel.track].freeroam)&&!sel.cine&&!sel.tourn;
   document.documentElement.style.setProperty('--acc',acc);
   [...trackRow.children].forEach((el,i)=>{
     el.classList.toggle('sel',i===sel.track);
@@ -3427,19 +3256,16 @@ function refreshMenu(){
   $('serverChip').classList.toggle('sel',sel.net&&sel.netMode==='server');
   $('cineChip').classList.toggle('sel',sel.cine);
   $('tournChip').classList.toggle('sel',sel.tourn);
-  $('modeName').textContent=sel.cine?'🎬 CINÉMATIQUE':sel.tourn?'🏆 CHAMPIONNAT':isRoam?'🧭 BALADE LIBRE':(sel.net?(sel.netMode==='server'?'EN LIGNE · SERVEUR':'EN LIGNE'):(sel.mp?'2 JOUEURS':'SOLO'));
+  $('modeName').textContent=sel.cine?'🎬 CINÉMATIQUE':sel.tourn?'🏆 CHAMPIONNAT':(sel.net?(sel.netMode==='server'?'EN LIGNE · SERVEUR':'EN LIGNE'):(sel.mp?'2 JOUEURS':'SOLO'));
   $('duoHint').classList.toggle('show',sel.mp);
   $('serverHint').classList.toggle('show',sel.net&&sel.netMode==='server');
   $('cineHint').classList.toggle('show',sel.cine);
   $('tournHint').classList.toggle('show',sel.tourn);
-  $('roamHint').classList.toggle('show',isRoam);
   $('teamBlk').hidden=sel.cine;
   $('oppBlk').hidden=sel.cine;
   $('ctrlBlk').hidden=sel.cine;
   $('trackBlk').hidden=sel.tourn;
-  $('lapsBlk').hidden=sel.tourn||isRoam;
-  $('diffBlk').hidden=isRoam;
-  document.querySelector('#oppBlk .lbl').textContent=isRoam?'TRAFIC':'ADVERSAIRES';
+  $('lapsBlk').hidden=sel.tourn;
   $('netBox').hidden=!sel.net;
   const inServerMode=sel.net&&sel.netMode==='server';
   document.querySelectorAll('.p2pOnly').forEach(el=>{
@@ -3448,7 +3274,7 @@ function refreshMenu(){
     else{ el.hidden=inServerMode; }
   });
   $('startBtn').querySelector('span').textContent=
-    (sel.net&&net.role==='guest')?"EN ATTENTE DE L'HÔTE…":(sel.cine?'LANCER LA CINÉMATIQUE':sel.tourn?'LANCER LE CHAMPIONNAT':isRoam?'PARTIR EN BALADE':'LANCER LA COURSE');
+    (sel.net&&net.role==='guest')?"EN ATTENTE DE L'HÔTE…":(sel.cine?'LANCER LA CINÉMATIQUE':sel.tourn?'LANCER LE CHAMPIONNAT':'LANCER LA COURSE');
   if(sel.mp&&sel.opp>23){sel.opp=23;$('oppV').textContent=23;}
   const guestLocked=sel.net&&net.role==='guest'&&net.connected;
   ['modeBlk','trackBlk','stepBlk','diffBlk','weatherBlk','todBlk'].forEach(id=>$(id).classList.toggle('netLocked',guestLocked));
@@ -3464,7 +3290,6 @@ function startRace(){
   mp=sel.mp&&!online;
   cine=sel.cine&&!online&&!mp;
   tournActive=sel.tourn&&!online&&!mp&&!cine;
-  roam=!!(TRACKS[sel.track]&&TRACKS[sel.track].freeroam)&&!online&&!mp&&!cine&&!tournActive;
   lapsTotal=tournActive?TOURN_LAPS:sel.laps;
   AIC=[0.8,0.9,1.0,1.06][sel.diff];
   weather=pendingWeather||(sel.weather==='random'?WEATHER_ORDER[randi(WEATHER_ORDER.length)]:sel.weather);
@@ -3475,7 +3300,6 @@ function startRace(){
   document.body.classList.toggle('mp',mp);
   document.body.classList.toggle('online',online);
   document.body.classList.toggle('cine',cine);
-  document.body.classList.toggle('roam',roam);
   $('cinePrevBtn').hidden=!cine; $('cineNextBtn').hidden=!cine;
   $('micBtn').hidden=!(online&&sel.netMode==='p2p'); $('chatToggleBtn').hidden=!online;
   if(!online){ $('chatPanel').hidden=true; chatOpen=false; }
