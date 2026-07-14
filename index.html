@@ -428,7 +428,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v3.0 · 13/07/2026</div>
+  <div id="verBadge" title="Version">v3.1 · 13/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -556,6 +556,12 @@ body.noTouch #kbHint{display:block}
     </div>
     <div id="gpNote" class="hint" style="margin-top:6px;text-align:left" hidden>🎮 Manette détectée — pilotage au joystick, gâchettes RT/LT (ou A/B), START pour pause.</div>
     </div>
+
+    <div class="secHead"><span class="lbl">CAMÉRA</span><span id="camComfortName" class="val"></span></div>
+    <div class="chips">
+      <button class="chip" id="comfortChip">🌊&nbsp;CAMÉRA DOUCE</button>
+    </div>
+    <div class="hint" style="margin-top:6px;text-align:left">Adoucit fortement tous les mouvements de caméra (moins de tremblement, de zoom et de à-coups) — pensé pour les personnes sensibles au mal des transports.</div>
 
     <div class="secHead"><span class="lbl">GRAPHISMES</span><span id="gfxName" class="val"></span></div>
     <div class="chips">
@@ -1476,7 +1482,7 @@ let tvSpots=[], mini={};
 let worldSun=null, worldEnv=null, AIC=0.9, weatherFX=null, lightningT=0, lightningCd=4;
 const sunDir=new THREE.Vector3(0,1,0);
 const isTouch=('ontouchstart' in window);
-const gfx={shadows:!isTouch, hq:true, bright:1};
+const gfx={shadows:!isTouch, hq:true, bright:1, comfort:false};
 const DIFFS=[{n:'FACILE',mul:0.90},{n:'NORMAL',mul:0.97},{n:'DIFFICILE',mul:1.03},{n:'IMPOSSIBLE',mul:1.10}];
 const camPos=new THREE.Vector3(), camPos2=new THREE.Vector3(), camLook=new THREE.Vector3();
 const sel={track:0,team:0,laps:3,opp:9,diff:1,mp:false,net:false,netMode:'p2p',ctrl:'arrows',cine:false,weather:'sun',tod:'day',tourn:false};
@@ -2030,13 +2036,17 @@ function ranking(){
 function camFor(cam,c,cp,dt){
   const fwd=new THREE.Vector3(Math.sin(c.heading),0,Math.cos(c.heading));
   const spd=Math.abs(c.speed);
+  // mode "caméra douce" (anti mal des transports) : quasiment plus de tremblement, de
+  // zoom ni d'à-coups sur les 4 vues — un suivi très lissé, pensé pour les personnes
+  // sensibles au mal des transports plutôt que pour le sensationnel.
+  const cf=gfx.comfort;
   if(camMode===0){
     const dp=new THREE.Vector3(c.pos.x-fwd.x*10.5,4.4,c.pos.z-fwd.z*10.5);
-    cp.lerp(dp,1-Math.exp(-6*dt));
+    cp.lerp(dp,1-Math.exp(-(cf?2:6)*dt));
     cam.position.copy(cp);
     cam.up.set(0,1,0);
     cam.lookAt(c.pos.x+fwd.x*5,1.4,c.pos.z+fwd.z*5);
-    cam.fov=70+spd*0.12;
+    cam.fov=cf?72:70+spd*0.12;
   }else if(camMode===1){
     // le Multivan est bien plus haut et plus carré qu'une monoplace : la caméra cockpit
     // doit être placée au niveau du poste de conduite du van, pas dans le plancher —
@@ -2044,21 +2054,24 @@ function camFor(cam,c,cp,dt){
     // il devient énorme comparé à ce qu'une monoplace connaît jamais).
     const isVan=c.team&&c.team.van;
     const top=isVan?CHEAT_TOP:TOP;
-    const sh=(spd/top)*0.12;
+    const sh=cf?0:(spd/top)*0.12;
     const eyeY=isVan?1.32:1.12, eyeF=isVan?0.6:1.2;
     cam.position.set(c.pos.x+fwd.x*eyeF+rand(-sh,sh),eyeY+rand(-sh,sh),c.pos.z+fwd.z*eyeF);
     cam.up.set(0,1,0);
     cam.lookAt(c.pos.x+fwd.x*50,eyeY-0.28,c.pos.z+fwd.z*50);
-    cam.fov=isVan?(74+(spd/top)*14):(80+spd*0.1);
+    cam.fov=cf?(isVan?78:82):(isVan?(74+(spd/top)*14):(80+spd*0.1));
   }else if(camMode===2){
     let best=tvSpots[0],bd=Infinity;
     for(const s of tvSpots){const d=s.distanceToSquared(c.pos);if(d<bd){bd=d;best=s;}}
-    cam.position.copy(best);
+    if(cf){ cp.lerp(best,1-Math.exp(-2.4*dt)); cam.position.copy(cp); }
+    else cam.position.copy(best);
     cam.up.set(0,1,0);
     cam.lookAt(c.pos.x,1,c.pos.z);
-    cam.fov=clamp(1500/Math.sqrt(bd),16,58);
+    cam.fov=cf?38:clamp(1500/Math.sqrt(bd),16,58);
   }else{
-    cam.position.set(c.pos.x,66,c.pos.z);
+    const dp=new THREE.Vector3(c.pos.x,66,c.pos.z);
+    if(cf){ cp.lerp(dp,1-Math.exp(-3*dt)); cam.position.copy(cp); }
+    else cam.position.copy(dp);
     cam.up.set(fwd.x,0,fwd.z);
     cam.lookAt(c.pos.x,0,c.pos.z);
     cam.fov=55;
@@ -3122,6 +3135,7 @@ function buildMenu(){
   $('wheelChip').onclick=()=>{sel.ctrl='wheel';refreshMenu();};
   $('shadowChip').onclick=()=>{gfx.shadows=!gfx.shadows;refreshMenu();};
   $('hqChip').onclick=()=>{gfx.hq=!gfx.hq;refreshMenu();};
+  $('comfortChip').onclick=()=>{gfx.comfort=!gfx.comfort;refreshMenu();};
   $('soloChip').onclick=()=>{
     if(online&&net.role==='guest'&&net.connected)return;
     sel.mp=false;sel.net=false;sel.cine=false;sel.tourn=false;refreshMenu();saveNetPrefs();
@@ -3280,6 +3294,8 @@ function refreshMenu(){
   $('shadowChip').classList.toggle('sel',gfx.shadows);
   $('hqChip').classList.toggle('sel',gfx.hq);
   $('gfxName').textContent=(gfx.hq?'HD':'RAPIDE')+(gfx.shadows?' + OMBRES':'');
+  $('comfortChip').classList.toggle('sel',gfx.comfort);
+  $('camComfortName').textContent=gfx.comfort?'DOUCE':'NORMALE';
   $('soloChip').classList.toggle('sel',!sel.mp&&!sel.net&&!sel.cine&&!sel.tourn);
   $('duoChip').classList.toggle('sel',sel.mp);
   $('netChip').classList.toggle('sel',sel.net&&sel.netMode==='p2p');

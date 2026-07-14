@@ -13,6 +13,7 @@ Jeu de course de Formule 1 en 3D, jouable directement dans le navigateur. 10 éc
   - 🌐 En ligne en duel, pair-à-pair (WebRTC, sans serveur)
   - 🛰️ En ligne via serveur relais (marche même sur réseaux restrictifs type 4G)
 - Difficulté réglable, gestion de l'essence et des arrêts au stand, plusieurs vues caméra (poursuite, cockpit, caméra TV, aérienne)
+- 🌊 **Caméra douce** (option dans le menu) — adoucit fortement tous les mouvements de caméra (tremblement, zoom, à-coups) pour les personnes sensibles au mal des transports
 - Manette, clavier (ZQSD/flèches), volant tactile ou flèches tactiles selon l'appareil
 - Chat texte et vocal en multijoueur en ligne
 - **PWA installable** — fonctionne hors ligne une fois chargé une première fois
