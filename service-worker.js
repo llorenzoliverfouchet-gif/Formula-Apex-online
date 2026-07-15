@@ -1,5 +1,5 @@
 'use strict';
-const VERSION = 'apex-v2';
+const VERSION = 'apex-v3';
 const CORE_CACHE = `apex-core-${VERSION}`;
 const RUNTIME_CACHE = `apex-runtime-${VERSION}`;
 
@@ -7,6 +7,7 @@ const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './menu-music.mp3',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',

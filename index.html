@@ -428,7 +428,7 @@ body.noTouch #kbHint{display:block}
 <div id="menu">
   <canvas id="menuBg"></canvas>
   <div id="menuVignette"></div>
-  <div id="verBadge" title="Version">v3.2 · 13/07/2026</div>
+  <div id="verBadge" title="Version">v3.3 · 13/07/2026</div>
   <div class="wrap">
     <div class="hero">
       <div class="season">26</div>
@@ -2275,55 +2275,21 @@ function updateAudio(){
   eng.g.gain.setTargetAtTime(vol,AC.currentTime,0.08);
 }
 
-/* ---------- petite musique d'ambiance jouée dans le menu ---------- */
-let menuMusic=null;
+/* ---------- petite musique jouée en boucle dans le menu ---------- */
+let menuMusicEl=null;
 function startMenuMusic(){
-  if(!AC||menuMusic||!sndOn)return;
-  try{
-    const master=AC.createGain(); master.gain.value=0;
-    master.connect(AC.destination);
-    master.gain.setTargetAtTime(0.05,AC.currentTime,2.5);
-    // nappe tenue, douce, filtrée, avec un léger mouvement de filtre (respiration)
-    const padFilter=AC.createBiquadFilter();
-    padFilter.type='lowpass'; padFilter.frequency.value=900;
-    padFilter.connect(master);
-    const padGain=AC.createGain(); padGain.gain.value=0.5; padGain.connect(padFilter);
-    const padFreqs=[110,146.83,174.61]; // La2, Ré3, Fa3 — accord doux
-    const padOscs=padFreqs.map(f=>{
-      const o=AC.createOscillator(); o.type='triangle'; o.frequency.value=f;
-      o.connect(padGain); o.start(); return o;
-    });
-    const lfo=AC.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.06;
-    const lfoGain=AC.createGain(); lfoGain.gain.value=260;
-    lfo.connect(lfoGain); lfoGain.connect(padFilter.frequency); lfo.start();
-    // petit arpège discret par-dessus, en boucle
-    const arpGain=AC.createGain(); arpGain.gain.value=0.045; arpGain.connect(master);
-    const scale=[440,523.25,587.33,659.25,783.99]; // pentatonique mineure
-    let step=0, arpTimer=null;
-    function pluck(){
-      const f=scale[step%scale.length]; step++;
-      const o=AC.createOscillator(), g=AC.createGain();
-      o.type='sine'; o.frequency.value=f;
-      g.gain.value=0; o.connect(g); g.connect(arpGain);
-      const t=AC.currentTime;
-      g.gain.linearRampToValueAtTime(1,t+0.02);
-      g.gain.exponentialRampToValueAtTime(0.001,t+0.5);
-      o.start(t); o.stop(t+0.55);
-      arpTimer=setTimeout(pluck,650);
-    }
-    arpTimer=setTimeout(pluck,900);
-    menuMusic={stop(){
-      clearTimeout(arpTimer);
-      master.gain.cancelScheduledValues(AC.currentTime);
-      master.gain.setTargetAtTime(0,AC.currentTime,0.5);
-      setTimeout(()=>{ try{ padOscs.forEach(o=>o.stop()); lfo.stop(); }catch(_){} },700);
-    }};
-  }catch(e){}
+  if(!sndOn)return;
+  if(!menuMusicEl){
+    menuMusicEl=new Audio('menu-music.mp3');
+    menuMusicEl.loop=true;
+    menuMusicEl.volume=0.35;
+  }
+  menuMusicEl.play().catch(()=>{}); // ignoré si l'autoplay est encore bloqué à ce stade
 }
 function stopMenuMusic(){
-  if(!menuMusic)return;
-  menuMusic.stop();
-  menuMusic=null;
+  if(!menuMusicEl)return;
+  menuMusicEl.pause();
+  menuMusicEl.currentTime=0;
 }
 
 /* ================= EN LIGNE (WebRTC pair-à-pair) ================= */
